@@ -29,9 +29,6 @@ Piece :: struct {
 	active:     bool,
 	piece_type: Piece_Type,
 	color:      Color,
-	board_x:    i32,
-	board_y:    i32,
-	rect:       rl.Rectangle,
 }
 
 Game_State :: struct {
@@ -45,12 +42,13 @@ Game_State :: struct {
 
 	// Game
 	state:                    State,
-	pieces:                   [64]Piece,
+	board:                    [8][8]Piece,
 	active_color:             Color,
 	can_castle_kingside:      [2]bool,
 	can_castle_queenside:     [2]bool,
 	en_passant_target_square: [2]i32,
-	dragging_piece_index:     i32,
+	dragging_piece_x:         i32,
+	dragging_piece_y:         i32,
 
 	// Input
 	left_mouse_clicked:       bool,
@@ -104,8 +102,12 @@ main :: proc() {
 	// https://freesound.org/people/180118/sounds/442887/
 	sound_pickup := rl.LoadSound("assets/pickup.wav")
 	sound_place := rl.LoadSound("assets/place.wav")
+	sound_take := rl.LoadSound("assets/take.wav")
+	sound_castle := rl.LoadSound("assets/castle.wav")
 	defer rl.UnloadSound(sound_pickup)
 	defer rl.UnloadSound(sound_place)
+	defer rl.UnloadSound(sound_take)
+	defer rl.UnloadSound(sound_castle)
 
 	// https://gitlab.com/zulban/chesscraft-creative-commons/-/tree/master/pieces/01_classic
 	pieces_textures: [2][6]rl.Texture2D
@@ -154,31 +156,32 @@ main :: proc() {
 
 		switch state {
 		case .Default:
-			if left_mouse_clicked && mouse_board_is_valid {
-				dragging_piece_index = get_piece_index(&gs, mouse_board_x, mouse_board_y)
-				if dragging_piece_index != -1 &&
-				   pieces[dragging_piece_index].color == active_color {
-					state = .Dragging
-					rl.PlaySound(sound_pickup)
-				}
+			if left_mouse_clicked &&
+			   mouse_board_is_valid &&
+			   board[mouse_board_x][mouse_board_y].active &&
+			   board[mouse_board_x][mouse_board_y].color == active_color {
+				dragging_piece_x = mouse_board_x
+				dragging_piece_y = mouse_board_y
+				state = .Dragging
+				rl.PlaySound(sound_pickup)
 			}
 
 		case .Dragging:
 			if !left_mouse_clicked {
 				if mouse_board_is_valid {
-					// TODO: Deactivate other piece
-					rl.PlaySound(sound_place)
-					pieces[dragging_piece_index].board_x = mouse_board_x
-					pieces[dragging_piece_index].board_y = mouse_board_y
+					if board[mouse_board_x][mouse_board_y].active {
+						rl.PlaySound(sound_take)
+					} else {
+						rl.PlaySound(sound_place)
+					}
+					board[mouse_board_x][mouse_board_y] = board[dragging_piece_x][dragging_piece_y]
+					board[dragging_piece_x][dragging_piece_y].active = false
 					active_color = .White if active_color == .Black else .Black
 
 				}
 				state = .Default
 			}
 		}
-		// left click and click on piece
-		// else
-		// state = Default
 
 
 		// === DRAW ===
@@ -187,41 +190,44 @@ main :: proc() {
 		rl.ClearBackground(rl.BLACK)
 
 		// Board
-		for r in 0 ..< 8 {
-			for c in 0 ..< 8 {
+		for x in 0 ..< 8 {
+			for y in 0 ..< 8 {
 				rl.DrawRectangle(
-					board_left + i32(c) * square_length,
-					board_top + i32(r) * square_length,
+					board_left + i32(x) * square_length,
+					board_top + i32(y) * square_length,
 					square_length,
 					square_length,
-					black_square_color if (r + c) % 2 == 0 else white_square_color,
+					black_square_color if (x + y) % 2 == 0 else white_square_color,
 				)
 			}
 		}
 
 		// Pieces
-		for piece, i in pieces {
-			if !piece.active {
-				continue
+		for x in 0 ..< 8 {
+			for y in 0 ..< 8 {
+				if !board[x][y].active {
+					continue
+				}
+				if state == .Dragging && i32(x) == dragging_piece_x && i32(y) == dragging_piece_y {
+					continue
+				}
+				rl.DrawTextureEx(
+					pieces_textures[board[x][y].color][board[x][y].piece_type],
+					{
+						f32(board_left + square_length * i32(x)),
+						f32(board_top + square_length * i32(y)),
+					},
+					0,
+					piece_scale,
+					rl.WHITE,
+				)
 			}
-			if state == .Dragging && i32(i) == dragging_piece_index {
-				continue
-			}
-			rl.DrawTextureEx(
-				pieces_textures[piece.color][piece.piece_type],
-				{
-					f32(board_left + square_length * piece.board_x),
-					f32(board_top + square_length * piece.board_y),
-				},
-				0,
-				piece_scale,
-				rl.WHITE,
-			)
 		}
+
 
 		// Dragged piece
 		if state == .Dragging {
-			piece := &pieces[dragging_piece_index]
+			piece := board[dragging_piece_x][dragging_piece_y]
 			rl.DrawTextureEx(
 				pieces_textures[piece.color][piece.piece_type],
 				{mouse_pos[0] - f32(square_length) / 2, mouse_pos[1] - f32(square_length) / 2},
@@ -235,7 +241,7 @@ main :: proc() {
 		if debug_show {
 			names := reflect.struct_field_names(typeid_of(Game_State))
 			for name, i in names {
-				if name == "pieces" {
+				if name == "board" {
 					continue
 				}
 				val_any := reflect.struct_field_value_by_name(gs, name)
@@ -267,7 +273,7 @@ load_fen :: proc(gs: ^Game_State, fen: string) -> bool {
 	castling := parts[2]
 	enpassant := parts[3]
 
-	tmp_pieces: [64]Piece
+	tmp_board: [8][8]Piece
 	tmp_can_castle_k: [2]bool
 	tmp_can_castle_q: [2]bool
 	tmp_ep: [2]i32 = {-1, -1}
@@ -323,22 +329,10 @@ load_fen :: proc(gs: ^Game_State, fen: string) -> bool {
 				return false
 			}
 
-			index := rank * 8 + file
-
-			rect := rl.Rectangle {
-				x      = f32(gs.board_left + file * gs.square_length),
-				y      = f32(gs.board_top + rank * gs.square_length),
-				width  = f32(gs.square_length),
-				height = f32(gs.square_length),
-			}
-
-			tmp_pieces[index] = Piece {
+			tmp_board[file][rank] = Piece {
 				active     = true,
 				piece_type = pt,
 				color      = color,
-				board_x    = file,
-				board_y    = rank,
-				rect       = rect,
 			}
 
 			file += 1
@@ -404,7 +398,7 @@ load_fen :: proc(gs: ^Game_State, fen: string) -> bool {
 	}
 
 	// Validation successful. Commit atomically.
-	gs.pieces = tmp_pieces
+	gs.board = tmp_board
 	gs.can_castle_kingside = tmp_can_castle_k
 	gs.can_castle_queenside = tmp_can_castle_q
 	gs.en_passant_target_square = tmp_ep
@@ -412,14 +406,4 @@ load_fen :: proc(gs: ^Game_State, fen: string) -> bool {
 	gs.state = .Default
 
 	return true
-}
-
-get_piece_index :: proc(gs: ^Game_State, board_x: i32, board_y: i32) -> i32 {
-	// Simple slow implementation for now
-	for piece, i in gs.pieces {
-		if piece.active && piece.board_x == board_x && piece.board_y == board_y {
-			return i32(i)
-		}
-	}
-	return -1
 }
