@@ -167,6 +167,50 @@ main :: proc() {
 				dragging_piece_y = mouse_board_y
 				state = .Dragging
 				rl.PlaySound(sound_pickup)
+
+				dragging_can_move_to = {}
+				x := dragging_piece_x
+				y := dragging_piece_y
+				switch board[x][y].piece_type {
+				case .Pawn:
+				case .Rook:
+					for y2 := y + 1; y2 < 8; y2 += 1 {
+						if !(board[x][y2].active && board[x][y2].color == active_color) {
+							dragging_can_move_to[x][y2] = true
+						}
+						if board[x][y2].active {
+							break
+						}
+					}
+					for y2 := y - 1; y2 >= 0; y2 -= 1 {
+						if !(board[x][y2].active && board[x][y2].color == active_color) {
+							dragging_can_move_to[x][y2] = true
+						}
+						if board[x][y2].active {
+							break
+						}
+					}
+					for x2 := x + 1; x2 < 8; x2 += 1 {
+						if !(board[x2][y].active && board[x2][y].color == active_color) {
+							dragging_can_move_to[x2][y] = true
+						}
+						if board[x2][y].active {
+							break
+						}
+					}
+					for x2 := x - 1; x2 >= 0; x2 -= 1 {
+						if !(board[x2][y].active && board[x2][y].color == active_color) {
+							dragging_can_move_to[x2][y] = true
+						}
+						if board[x2][y].active {
+							break
+						}
+					}
+				case .Knight:
+				case .Bishop:
+				case .Queen:
+				case .King:
+				}
 			}
 
 		case .Dragging:
