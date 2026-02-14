@@ -49,6 +49,7 @@ Game_State :: struct {
 	en_passant_target_square: [2]i32,
 	dragging_piece_x:         i32,
 	dragging_piece_y:         i32,
+	dragging_can_move_to:     [8][8]bool,
 
 	// Input
 	left_mouse_clicked:       bool,
@@ -60,6 +61,7 @@ Game_State :: struct {
 	// Colors
 	white_square_color:       rl.Color,
 	black_square_color:       rl.Color,
+	move_to_color:            rl.Color,
 
 	// Debug
 	debug_show:               bool,
@@ -81,6 +83,7 @@ main :: proc() {
 		piece_scale        = 720.0 / 8 / 480.0,
 		white_square_color = rl.GetColor(0xEBECD0FF),
 		black_square_color = rl.GetColor(0x739552FF),
+		move_to_color      = rl.Fade(rl.BLUE, 0.3),
 		debug_show         = true,
 		debug_line_height  = 20,
 		debug_x            = 10,
@@ -168,7 +171,8 @@ main :: proc() {
 
 		case .Dragging:
 			if !left_mouse_clicked {
-				if mouse_board_is_valid {
+				if mouse_board_is_valid &&
+				   !(mouse_board_x == dragging_piece_x && mouse_board_y == dragging_piece_y) {
 					if board[mouse_board_x][mouse_board_y].active {
 						rl.PlaySound(sound_take)
 					} else {
@@ -189,9 +193,9 @@ main :: proc() {
 		rl.BeginDrawing()
 		rl.ClearBackground(rl.BLACK)
 
-		// Board
 		for x in 0 ..< 8 {
 			for y in 0 ..< 8 {
+				// Background
 				rl.DrawRectangle(
 					board_left + i32(x) * square_length,
 					board_top + i32(y) * square_length,
@@ -199,31 +203,36 @@ main :: proc() {
 					square_length,
 					black_square_color if (x + y) % 2 == 0 else white_square_color,
 				)
+
+				// Piece
+				if board[x][y].active &&
+				   !(state == .Dragging &&
+						   i32(x) == dragging_piece_x &&
+						   i32(y) == dragging_piece_y) {
+
+					rl.DrawTextureEx(
+						pieces_textures[board[x][y].color][board[x][y].piece_type],
+						{
+							f32(board_left + square_length * i32(x)),
+							f32(board_top + square_length * i32(y)),
+						},
+						0,
+						piece_scale,
+						rl.WHITE,
+					)
+				}
+
+				// Move-to dot
+				if state == .Dragging && dragging_can_move_to[x][y] {
+					rl.DrawCircle(
+						board_left + square_length * i32(x) + square_length / 2,
+						board_top + square_length * i32(y) + square_length / 2,
+						0.1 * f32(square_length) / 2,
+						move_to_color,
+					)
+				}
 			}
 		}
-
-		// Pieces
-		for x in 0 ..< 8 {
-			for y in 0 ..< 8 {
-				if !board[x][y].active {
-					continue
-				}
-				if state == .Dragging && i32(x) == dragging_piece_x && i32(y) == dragging_piece_y {
-					continue
-				}
-				rl.DrawTextureEx(
-					pieces_textures[board[x][y].color][board[x][y].piece_type],
-					{
-						f32(board_left + square_length * i32(x)),
-						f32(board_top + square_length * i32(y)),
-					},
-					0,
-					piece_scale,
-					rl.WHITE,
-				)
-			}
-		}
-
 
 		// Dragged piece
 		if state == .Dragging {
@@ -241,7 +250,7 @@ main :: proc() {
 		if debug_show {
 			names := reflect.struct_field_names(typeid_of(Game_State))
 			for name, i in names {
-				if name == "board" {
+				if name == "board" || name == "dragging_can_move_to" {
 					continue
 				}
 				val_any := reflect.struct_field_value_by_name(gs, name)
