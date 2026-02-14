@@ -1,6 +1,7 @@
 package main
 
 import "core:fmt"
+import "core:reflect"
 import "core:strings"
 import "core:unicode"
 import rl "vendor:raylib"
@@ -34,21 +35,35 @@ Piece :: struct {
 }
 
 Game_State :: struct {
-	state:                    State,
+	// Screen
 	screen_width:             i32,
 	screen_height:            i32,
 	board_left:               i32,
 	board_top:                i32,
 	square_length:            i32,
 	piece_scale:              f32,
+
+	// Game
+	state:                    State,
 	pieces:                   [64]Piece,
 	active_color:             Color,
 	can_castle_kingside:      [2]bool,
 	can_castle_queenside:     [2]bool,
 	en_passant_target_square: [2]i32,
 	dragging_piece_index:     i32,
+
+	// Input
+	left_mouse_clicked:       bool,
+	mouse_pos:                [2]f32,
+	mouse_board_is_valid:     bool,
+	mouse_board_x:            i32,
+	mouse_board_y:            i32,
+
+	// Colors
 	white_square_color:       rl.Color,
 	black_square_color:       rl.Color,
+
+	// Debug
 	debug_show:               bool,
 	debug_line_height:        i32,
 	debug_column_width:       i32,
@@ -120,6 +135,27 @@ main :: proc() {
 			piece_scale = f32(square_length) / 480.0
 		}
 
+		// === INPUT ===
+		left_mouse_clicked = rl.IsMouseButtonDown(.LEFT)
+		mouse_pos = rl.GetMousePosition()
+		mouse_board_x = i32((mouse_pos[0] - f32(board_left)) / f32(square_length))
+		mouse_board_y = i32((mouse_pos[1] - f32(board_top)) / f32(square_length))
+		mouse_board_is_valid =
+			0 <= mouse_board_x && mouse_board_x < 8 && 0 <= mouse_board_y && mouse_board_y < 8
+
+		switch state {
+		case .Default:
+			if left_mouse_clicked && mouse_board_is_valid {
+				dragging_piece_index = get_piece_index(&gs, mouse_board_x, mouse_board_y)
+				if dragging_piece_index != -1 &&
+				   pieces[dragging_piece_index].color == active_color {
+					state = .Dragging
+				}
+			}
+
+		case .Dragging:
+			if !left_mouse_clicked {state = .Default}
+		}
 		// left click and click on piece
 		// else
 		// state = Default
@@ -143,8 +179,11 @@ main :: proc() {
 		}
 
 		// Pieces
-		for piece in pieces {
+		for piece, i in pieces {
 			if !piece.active {
+				continue
+			}
+			if state == .Dragging && i32(i) == dragging_piece_index {
 				continue
 			}
 			rl.DrawTextureEx(
@@ -159,35 +198,29 @@ main :: proc() {
 			)
 		}
 
+		// Dragged piece
+		if state == .Dragging {
+			piece := &pieces[dragging_piece_index]
+			rl.DrawTextureEx(
+				pieces_textures[piece.color][piece.piece_type],
+				{mouse_pos[0] - f32(square_length) / 2, mouse_pos[1] - f32(square_length) / 2},
+				0,
+				piece_scale,
+				rl.WHITE,
+			)
+		}
+
 		// Debug text
 		if debug_show {
-			fields := []string {
-				fmt.tprintf("state: %v", state),
-				fmt.tprintf("screen_width: %v", screen_width),
-				fmt.tprintf("screen_height: %v", screen_height),
-				fmt.tprintf("board_left: %v", board_left),
-				fmt.tprintf("board_top: %v", board_top),
-				fmt.tprintf("square_length: %v", square_length),
-				fmt.tprintf("piece_scale: %v", piece_scale),
-				// fmt.tprintf("pieces: %v", pieces),
-				fmt.tprintf("active_color: %v", active_color),
-				fmt.tprintf("can_castle_kingside: %v", can_castle_kingside),
-				fmt.tprintf("can_castle_queenside: %v", can_castle_queenside),
-				fmt.tprintf("en_passant_target_square: %v", en_passant_target_square),
-				fmt.tprintf("white_square_color: %v", white_square_color),
-				fmt.tprintf("black_square_color: %v", black_square_color),
-				fmt.tprintf("debug_show: %v", debug_show),
-				fmt.tprintf("debug_line_height: %v", debug_line_height),
-				fmt.tprintf("debug_column_width: %v", debug_column_width),
-				fmt.tprintf("debug_x: %v", debug_x),
-				fmt.tprintf("debug_y: %v", debug_y),
-				fmt.tprintf("dt: %v", dt),
-				fmt.tprintf("fps: %v", fps),
-			}
+			names := reflect.struct_field_names(typeid_of(Game_State))
+			for name, i in names {
+				if name == "pieces" {
+					continue
+				}
+				val_any := reflect.struct_field_value_by_name(gs, name)
 
-			for field, i in fields {
 				rl.DrawText(
-					fmt.ctprintf("%s", field),
+					fmt.ctprintf("%s: %v\n", name, val_any),
 					debug_x,
 					debug_y + i32(i) * debug_line_height,
 					20,
@@ -358,4 +391,14 @@ load_fen :: proc(gs: ^Game_State, fen: string) -> bool {
 	gs.state = .Default
 
 	return true
+}
+
+get_piece_index :: proc(gs: ^Game_State, board_x: i32, board_y: i32) -> i32 {
+	// Simple slow implementation for now
+	for piece, i in gs.pieces {
+		if piece.active && piece.board_x == board_x && piece.board_y == board_y {
+			return i32(i)
+		}
+	}
+	return -1
 }
