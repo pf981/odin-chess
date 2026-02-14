@@ -101,6 +101,12 @@ main :: proc() {
 	rl.InitAudioDevice()
 	defer rl.CloseAudioDevice()
 
+	// https://freesound.org/people/180118/sounds/442887/
+	sound_pickup := rl.LoadSound("assets/pickup.wav")
+	sound_place := rl.LoadSound("assets/place.wav")
+	defer rl.UnloadSound(sound_pickup)
+	defer rl.UnloadSound(sound_place)
+
 	// https://gitlab.com/zulban/chesscraft-creative-commons/-/tree/master/pieces/01_classic
 	pieces_textures: [2][6]rl.Texture2D
 	pieces_textures[Color.White][Piece_Type.Pawn] = rl.LoadTexture("assets/w-pawn.png")
@@ -115,11 +121,9 @@ main :: proc() {
 	pieces_textures[Color.Black][Piece_Type.Bishop] = rl.LoadTexture("assets/b-bishop.png")
 	pieces_textures[Color.Black][Piece_Type.Queen] = rl.LoadTexture("assets/b-queen.png")
 	pieces_textures[Color.Black][Piece_Type.King] = rl.LoadTexture("assets/b-king.png")
-	defer {
-		for color in Color {
-			for piece_type in Piece_Type {
-				rl.UnloadTexture(pieces_textures[color][piece_type])
-			}
+	defer for color in Color {
+		for piece_type in Piece_Type {
+			rl.UnloadTexture(pieces_textures[color][piece_type])
 		}
 	}
 
@@ -135,13 +139,18 @@ main :: proc() {
 			piece_scale = f32(square_length) / 480.0
 		}
 
+
 		// === INPUT ===
+
 		left_mouse_clicked = rl.IsMouseButtonDown(.LEFT)
 		mouse_pos = rl.GetMousePosition()
 		mouse_board_x = i32((mouse_pos[0] - f32(board_left)) / f32(square_length))
 		mouse_board_y = i32((mouse_pos[1] - f32(board_top)) / f32(square_length))
 		mouse_board_is_valid =
 			0 <= mouse_board_x && mouse_board_x < 8 && 0 <= mouse_board_y && mouse_board_y < 8
+
+
+		// === STATE ===
 
 		switch state {
 		case .Default:
@@ -150,15 +159,27 @@ main :: proc() {
 				if dragging_piece_index != -1 &&
 				   pieces[dragging_piece_index].color == active_color {
 					state = .Dragging
+					rl.PlaySound(sound_pickup)
 				}
 			}
 
 		case .Dragging:
-			if !left_mouse_clicked {state = .Default}
+			if !left_mouse_clicked {
+				if mouse_board_is_valid {
+					// TODO: Deactivate other piece
+					rl.PlaySound(sound_place)
+					pieces[dragging_piece_index].board_x = mouse_board_x
+					pieces[dragging_piece_index].board_y = mouse_board_y
+					active_color = .White if active_color == .Black else .Black
+
+				}
+				state = .Default
+			}
 		}
 		// left click and click on piece
 		// else
 		// state = Default
+
 
 		// === DRAW ===
 
