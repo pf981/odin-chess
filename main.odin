@@ -1,9 +1,6 @@
 package main
 
 import "core:fmt"
-import "core:math/linalg"
-import "core:math/rand"
-import "core:reflect"
 import "core:strings"
 import "core:unicode"
 import rl "vendor:raylib"
@@ -22,6 +19,11 @@ Color :: enum {
 	Black,
 }
 
+State :: enum {
+	Default,
+	Dragging,
+}
+
 Piece :: struct {
 	active:     bool,
 	piece_type: Piece_Type,
@@ -32,6 +34,7 @@ Piece :: struct {
 }
 
 Game_State :: struct {
+	state:                    State,
 	screen_width:             i32,
 	screen_height:            i32,
 	board_left:               i32,
@@ -39,9 +42,13 @@ Game_State :: struct {
 	square_length:            i32,
 	piece_scale:              f32,
 	pieces:                   [64]Piece,
+	active_color:             Color,
 	can_castle_kingside:      [2]bool,
 	can_castle_queenside:     [2]bool,
 	en_passant_target_square: [2]i32,
+	dragging_piece_index:     i32,
+	white_square_color:       rl.Color,
+	black_square_color:       rl.Color,
 	debug_show:               bool,
 	debug_line_height:        i32,
 	debug_column_width:       i32,
@@ -53,16 +60,18 @@ Game_State :: struct {
 
 main :: proc() {
 	gs := Game_State {
-		screen_width      = 1280,
-		screen_height     = 720,
-		square_length     = 720 / 8,
-		board_left        = (1280 - 720) / 2,
-		board_top         = (720 - 720) / 2,
-		piece_scale       = 720.0 / 480.0,
-		debug_show        = true,
-		debug_line_height = 20,
-		debug_x           = 10,
-		debug_y           = 10,
+		screen_width       = 1280,
+		screen_height      = 720,
+		square_length      = 720 / 8,
+		board_left         = (1280 - 720) / 2,
+		board_top          = (720 - 720) / 2,
+		piece_scale        = 720.0 / 8 / 480.0,
+		white_square_color = rl.GetColor(0xEBECD0FF),
+		black_square_color = rl.GetColor(0x739552FF),
+		debug_show         = true,
+		debug_line_height  = 20,
+		debug_x            = 10,
+		debug_y            = 10,
 	}
 	using gs
 
@@ -111,6 +120,9 @@ main :: proc() {
 			piece_scale = f32(square_length) / 480.0
 		}
 
+		// left click and click on piece
+		// else
+		// state = Default
 
 		// === DRAW ===
 
@@ -125,7 +137,7 @@ main :: proc() {
 					board_top + i32(r) * square_length,
 					square_length,
 					square_length,
-					rl.WHITE if (r + c) % 2 == 0 else rl.GREEN,
+					black_square_color if (r + c) % 2 == 0 else white_square_color,
 				)
 			}
 		}
@@ -135,17 +147,40 @@ main :: proc() {
 			if !piece.active {
 				continue
 			}
-			rl.DrawTextureEx(pieces_textures[1][1], 0, 0, piece_scale, rl.WHITE)
+			rl.DrawTextureEx(
+				pieces_textures[piece.color][piece.piece_type],
+				{
+					f32(board_left + square_length * piece.board_x),
+					f32(board_top + square_length * piece.board_y),
+				},
+				0,
+				piece_scale,
+				rl.WHITE,
+			)
 		}
 
 		// Debug text
 		if debug_show {
 			fields := []string {
+				fmt.tprintf("state: %v", state),
 				fmt.tprintf("screen_width: %v", screen_width),
 				fmt.tprintf("screen_height: %v", screen_height),
 				fmt.tprintf("board_left: %v", board_left),
 				fmt.tprintf("board_top: %v", board_top),
 				fmt.tprintf("square_length: %v", square_length),
+				fmt.tprintf("piece_scale: %v", piece_scale),
+				// fmt.tprintf("pieces: %v", pieces),
+				fmt.tprintf("active_color: %v", active_color),
+				fmt.tprintf("can_castle_kingside: %v", can_castle_kingside),
+				fmt.tprintf("can_castle_queenside: %v", can_castle_queenside),
+				fmt.tprintf("en_passant_target_square: %v", en_passant_target_square),
+				fmt.tprintf("white_square_color: %v", white_square_color),
+				fmt.tprintf("black_square_color: %v", black_square_color),
+				fmt.tprintf("debug_show: %v", debug_show),
+				fmt.tprintf("debug_line_height: %v", debug_line_height),
+				fmt.tprintf("debug_column_width: %v", debug_column_width),
+				fmt.tprintf("debug_x: %v", debug_x),
+				fmt.tprintf("debug_y: %v", debug_y),
 				fmt.tprintf("dt: %v", dt),
 				fmt.tprintf("fps: %v", fps),
 			}
@@ -174,6 +209,7 @@ load_fen :: proc(gs: ^Game_State, fen: string) -> bool {
 	}
 
 	placement := parts[0]
+	active_color := parts[1]
 	castling := parts[2]
 	enpassant := parts[3]
 
@@ -181,6 +217,7 @@ load_fen :: proc(gs: ^Game_State, fen: string) -> bool {
 	tmp_can_castle_k: [2]bool
 	tmp_can_castle_q: [2]bool
 	tmp_ep: [2]i32 = {-1, -1}
+	tmp_active_color: Color
 
 	rank: i32 = 0
 	file: i32 = 0
@@ -260,6 +297,16 @@ load_fen :: proc(gs: ^Game_State, fen: string) -> bool {
 		return false
 	}
 
+	switch active_color {
+	case "w":
+		tmp_active_color = .White
+	case "b":
+		tmp_active_color = .Black
+	case:
+		fmt.printfln("Unexpected active color")
+		return false
+	}
+
 	if castling != "-" {
 		for ch in castling {
 			switch ch {
@@ -307,6 +354,8 @@ load_fen :: proc(gs: ^Game_State, fen: string) -> bool {
 	gs.can_castle_kingside = tmp_can_castle_k
 	gs.can_castle_queenside = tmp_can_castle_q
 	gs.en_passant_target_square = tmp_ep
+	gs.active_color = tmp_active_color
+	gs.state = .Default
 
 	return true
 }
