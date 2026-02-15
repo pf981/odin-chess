@@ -519,7 +519,3 @@ main :: proc() {
 		free_all(context.temp_allocator)
 	}
 }
-
-
-process_command :: proc(gs: ^Game_State, command: string) {
-}
