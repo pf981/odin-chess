@@ -357,7 +357,9 @@ make_move :: proc(using game: ^Game, from_x: i32, from_y: i32, to_x: i32, to_y: 
 }
 
 reset_game :: proc(game: ^Game) {
-	load_fen(game, "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1")
+	if !load_fen(game, "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1") {
+		fmt.println("Unable to load FEN")
+	}
 }
 
 load_fen :: proc(game: ^Game, fen: string) -> bool {

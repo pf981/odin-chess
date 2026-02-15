@@ -1,10 +1,13 @@
 ## Todo
-- [] Game completion animation. Disable input on completion
+- [] Game completion animation
 - [] Right UI
   - [] Move notation
   - [] Offer/Accept draw
   - [] Resign
   - [] Flip board
+  - [] New
+  - [] FEN
+  - [] Checkboxes for CPU
 - [] CPU opponent (random valid moves. Black, white or both)
 - [] Additional end conditions
   - [] Threefold repetition
@@ -13,22 +16,22 @@
   - [] Draw offer
 - [] Clock
 - [] Flip board
-- [] Menu
-  - New. CPU or player
-- [] Play board reset sound on new game
+- [] More console commands
+  - [] Export FEN to clipboard - "savefen"
+  - [] Modify any game state field - "set board_left 200"
 
 ## Doing
-- [] Console
-  - [x] Make appear
-  - [x] Input text
-  - [] Handle shift
-  - [] Handle backspace
-  - [] Load FEN
-  - [] New
-  - [] Export FEN
-  - [] Set any field in Game_State
 
 ## Done
+- [x] Add start game sound
+- [x] Disable input on completion
+- [x] Console
+  - [x] Make appear
+  - [x] Input text
+  - [x] Handle shift
+  - [x] Handle backspace
+  - [x] Load FEN
+  - [x] New
 - [x] Castling
 - [x] En Passant
 - [x] Board row and column annotations

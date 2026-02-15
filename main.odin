@@ -146,9 +146,6 @@ main :: proc() {
 		debug_y                   = 10,
 	}
 
-	if !load_fen(&gs, "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1") {
-		fmt.println("Unable to load FEN")
-	}
 
 	rl.SetConfigFlags({.WINDOW_RESIZABLE})
 	rl.InitWindow(screen_width, screen_height, "Chess")
@@ -164,12 +161,15 @@ main :: proc() {
 	sound_take := rl.LoadSound("assets/take.wav")
 	sound_castle := rl.LoadSound("assets/castle.wav")
 	sound_check := rl.LoadSound("assets/check.wav")
+	// https://pixabay.com/sound-effects/film-special-effects-board-game-pieces-59039/
+	sound_start := rl.LoadSound("assets/start.wav")
 	defer {
 		rl.UnloadSound(sound_pickup)
 		rl.UnloadSound(sound_place)
 		rl.UnloadSound(sound_take)
 		rl.UnloadSound(sound_castle)
 		rl.UnloadSound(sound_check)
+		rl.UnloadSound(sound_start)
 	}
 
 	// https://gitlab.com/zulban/chesscraft-creative-commons/-/tree/master/pieces/01_classic
@@ -196,6 +196,8 @@ main :: proc() {
 	rl.SetTextureFilter(font.texture, .BILINEAR)
 	defer rl.UnloadFont(font)
 
+	reset_game(&gs.game)
+	rl.PlaySound(sound_start)
 
 	for !rl.WindowShouldClose() {
 		dt = rl.GetFrameTime()
@@ -317,7 +319,23 @@ main :: proc() {
 			}
 			if key_enter_pressed {
 				ui_state = .Default
-				process_command(&gs, string(cstring(&console_input_buffer[0])))
+				command := string(cstring(&console_input_buffer[0]))
+				parts := strings.split_n(command, " ", 2)
+				op := parts[0]
+
+				if op == "new" {
+					gs.ui_state = .Default
+					reset_game(&gs.game)
+					rl.PlaySound(sound_start)
+				} else if op == "loadfen" && len(parts) == 2 {
+					gs.ui_state = .Default
+					load_fen(&gs.game, parts[1])
+					rl.PlaySound(sound_start)
+					return
+				} else {
+					fmt.printfln("Unable to process command '%s'", command)
+				}
+
 				console_input_buffer[0] = 0
 				console_input_buffer_length = 0
 			}
@@ -504,18 +522,4 @@ main :: proc() {
 
 
 process_command :: proc(gs: ^Game_State, command: string) {
-	parts := strings.split_n(command, " ", 2)
-	op := parts[0]
-
-	if op == "new" {
-		gs.ui_state = .Default
-		reset_game(&gs.game)
-		return
-	}
-
-	if op == "loadfen" && len(parts) == 2 {
-		gs.ui_state = .Default
-		load_fen(&gs.game, parts[1])
-		return
-	}
 }
