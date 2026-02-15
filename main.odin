@@ -23,6 +23,7 @@ Color :: enum {
 UI_State :: enum {
 	Default,
 	Dragging,
+	Debug_Show_Attacked_Squares,
 	// TODO: Menu, Console
 }
 
@@ -43,62 +44,69 @@ Game :: struct {
 	can_castle_kingside:      [2]bool,
 	can_castle_queenside:     [2]bool,
 	en_passant_target_square: [2]i32,
-	attacked_squares:         Bitboard,
 	moves:                    [8][8]Bitboard,
 }
 
 Game_State :: struct {
-	ui_state:             UI_State,
+	ui_state:                          UI_State,
+
 	// Screen
-	screen_width:         i32,
-	screen_height:        i32,
-	board_left:           i32,
-	board_top:            i32,
-	square_length:        i32,
-	piece_scale:          f32,
+	screen_width:                      i32,
+	screen_height:                     i32,
+	board_left:                        i32,
+	board_top:                         i32,
+	square_length:                     i32,
+	piece_scale:                       f32,
 
 	// Game
-	using game:           Game,
-	dragging_piece_x:     i32,
-	dragging_piece_y:     i32,
+	using game:                        Game,
+	dragging_piece_x:                  i32,
+	dragging_piece_y:                  i32,
 
 	// Input
-	left_mouse_clicked:   bool,
-	mouse_pos:            [2]f32,
-	mouse_board_is_valid: bool,
-	mouse_board_x:        i32,
-	mouse_board_y:        i32,
+	left_mouse_clicked:                bool,
+	mouse_pos:                         [2]f32,
+	mouse_board_is_valid:              bool,
+	mouse_board_x:                     i32,
+	mouse_board_y:                     i32,
+	key_show_attacked_squares_pressed: bool,
+
+	// Key Mapping
+	key_show_attacked_squares:         rl.KeyboardKey,
 
 	// Colors
-	white_square_color:   rl.Color,
-	black_square_color:   rl.Color,
-	move_to_color:        rl.Color,
+	color_white_square:                rl.Color,
+	color_black_square:                rl.Color,
+	color_move_to:                     rl.Color,
+	color_attacked:                    rl.Color,
 
 	// Debug
-	debug_show:           bool,
-	debug_line_height:    i32,
-	debug_column_width:   i32,
-	debug_x:              i32,
-	debug_y:              i32,
-	dt:                   f32,
-	fps:                  i32,
+	debug_show:                        bool,
+	debug_line_height:                 i32,
+	debug_column_width:                i32,
+	debug_x:                           i32,
+	debug_y:                           i32,
+	dt:                                f32,
+	fps:                               i32,
 }
 
 main :: proc() {
 	gs := Game_State {
-		screen_width       = 1280,
-		screen_height      = 720,
-		square_length      = 720 / 8,
-		board_left         = (1280 - 720) / 2,
-		board_top          = (720 - 720) / 2,
-		piece_scale        = 720.0 / 8 / 480.0,
-		white_square_color = rl.GetColor(0xEBECD0FF),
-		black_square_color = rl.GetColor(0x739552FF),
-		move_to_color      = rl.Fade(rl.BLUE, 0.3),
-		debug_show         = true,
-		debug_line_height  = 20,
-		debug_x            = 10,
-		debug_y            = 10,
+		screen_width              = 1280,
+		screen_height             = 720,
+		square_length             = 720 / 8,
+		board_left                = (1280 - 720) / 2,
+		board_top                 = (720 - 720) / 2,
+		piece_scale               = 720.0 / 8 / 480.0,
+		key_show_attacked_squares = rl.KeyboardKey.F1,
+		color_white_square        = rl.GetColor(0xEBECD0FF),
+		color_black_square        = rl.GetColor(0x739552FF),
+		color_move_to             = rl.Fade(rl.BLUE, 0.7),
+		color_attacked            = rl.Fade(rl.RED, 0.7),
+		debug_show                = true,
+		debug_line_height         = 20,
+		debug_x                   = 10,
+		debug_y                   = 10,
 	}
 	using gs
 
@@ -109,6 +117,7 @@ main :: proc() {
 	rl.SetConfigFlags({.WINDOW_RESIZABLE})
 	rl.InitWindow(screen_width, screen_height, "Chess")
 	defer rl.CloseWindow()
+	rl.SetTargetFPS(120)
 
 	rl.InitAudioDevice()
 	defer rl.CloseAudioDevice()
@@ -164,6 +173,7 @@ main :: proc() {
 		mouse_board_y = i32((mouse_pos[1] - f32(board_top)) / f32(square_length))
 		mouse_board_is_valid =
 			0 <= mouse_board_x && mouse_board_x < 8 && 0 <= mouse_board_y && mouse_board_y < 8
+		key_show_attacked_squares_pressed = rl.IsKeyPressed(key_show_attacked_squares)
 
 
 		// === STATE ===
@@ -178,6 +188,10 @@ main :: proc() {
 				dragging_piece_y = mouse_board_y
 				ui_state = .Dragging
 				rl.PlaySound(sound_pickup)
+			}
+
+			if key_show_attacked_squares_pressed {
+				ui_state = .Debug_Show_Attacked_Squares
 			}
 
 
@@ -198,6 +212,15 @@ main :: proc() {
 				}
 				ui_state = .Default
 			}
+
+			if key_show_attacked_squares_pressed {
+				ui_state = .Debug_Show_Attacked_Squares
+			}
+		case .Debug_Show_Attacked_Squares:
+			if key_show_attacked_squares_pressed {
+				ui_state = .Default
+			}
+
 		}
 
 
@@ -214,7 +237,7 @@ main :: proc() {
 					board_top + i32(y) * square_length,
 					square_length,
 					square_length,
-					black_square_color if (x + y) % 2 == 0 else white_square_color,
+					color_black_square if (x + y) % 2 == 0 else color_white_square,
 				)
 
 				// Piece
@@ -243,7 +266,20 @@ main :: proc() {
 						board_left + square_length * i32(x) + square_length / 2,
 						board_top + square_length * i32(y) + square_length / 2,
 						0.1 * f32(square_length) / 2,
-						move_to_color,
+						color_move_to,
+					)
+				}
+
+				// Attacking dot
+				// if ui_state == .Dragging &&
+				//    (x + (y * 8)) in moves[dragging_piece_x][dragging_piece_y] {
+				if ui_state == .Debug_Show_Attacked_Squares &&
+				   is_square_attacked(game, i32(x), i32(y)) {
+					rl.DrawCircle(
+						board_left + square_length * i32(x) + square_length / 2,
+						board_top + square_length * i32(y) + square_length / 2,
+						0.1 * f32(square_length) / 2,
+						color_attacked,
 					)
 				}
 			}

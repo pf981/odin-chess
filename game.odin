@@ -9,8 +9,11 @@ in_bounds :: #force_inline proc(x: i32, y: i32) -> bool {
 	return x >= 0 && x < 8 && y >= 0 && y < 8
 }
 
-is_square_attacked :: proc(g: Game, tx: i32, ty: i32, by: Color) -> bool {
+is_square_attacked :: proc(g: Game, tx: i32, ty: i32) -> bool {
 	using g
+
+	by := Color(.Black if active_color == .White else .White)
+
 	for x in 0 ..< 8 {
 		for y in 0 ..< 8 {
 			p := board[x][y]
