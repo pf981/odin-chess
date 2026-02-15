@@ -356,7 +356,11 @@ make_move :: proc(using game: ^Game, from_x: i32, from_y: i32, to_x: i32, to_y: 
 	update_moves(game)
 }
 
-load_fen :: proc(g: ^Game, fen: string) -> bool {
+reset_game :: proc(game: ^Game) {
+	load_fen(game, "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1")
+}
+
+load_fen :: proc(game: ^Game, fen: string) -> bool {
 	parts := strings.split(fen, " ")
 	if len(parts) < 4 {
 		fmt.println("Too few parts")
@@ -493,13 +497,15 @@ load_fen :: proc(g: ^Game, fen: string) -> bool {
 	}
 
 	// Validation successful. Commit atomically.
-	g.board = tmp_board
-	g.can_castle_kingside = tmp_can_castle_k
-	g.can_castle_queenside = tmp_can_castle_q
-	g.en_passant_target_square = tmp_ep
-	g.active_color = tmp_active_color
+	game.board = tmp_board
+	game.can_castle_kingside = tmp_can_castle_k
+	game.can_castle_queenside = tmp_can_castle_q
+	game.en_passant_target_square = tmp_ep
+	game.active_color = tmp_active_color
 
-	update_moves(g)
+	game.is_completed = false
+
+	update_moves(game)
 
 	return true
 }

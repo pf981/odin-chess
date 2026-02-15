@@ -4,7 +4,10 @@ import sa "core:container/small_array"
 import "core:fmt"
 import "core:math"
 import "core:reflect"
+import "core:strings"
 import rl "vendor:raylib"
+
+CONSOLE_INPUT_BUFFER_SIZE :: 256
 
 Piece_Type :: enum {
 	Pawn,
@@ -24,6 +27,7 @@ UI_State :: enum {
 	Default,
 	Dragging,
 	Console,
+	Game_Over,
 }
 
 Piece :: struct {
@@ -87,6 +91,7 @@ Game_State :: struct {
 	key_show_console_pressed:          bool,
 	key_backspace_pressed:             bool,
 	key_enter_pressed:                 bool,
+	key_ctrl_v_pressed:                bool,
 	key_last_char_pressed:             u8,
 
 	// Key Mapping
@@ -104,7 +109,7 @@ Game_State :: struct {
 
 	// Console
 	console_font_size:                 f32,
-	console_input_buffer:              [256]u8,
+	console_input_buffer:              [CONSOLE_INPUT_BUFFER_SIZE]u8,
 	console_input_buffer_length:       i32,
 
 	// Debug
@@ -218,15 +223,25 @@ main :: proc() {
 		key_show_console_pressed = rl.IsKeyPressed(key_show_console)
 		key_backspace_pressed = rl.IsKeyPressed(rl.KeyboardKey.BACKSPACE)
 		key_enter_pressed = rl.IsKeyPressed(rl.KeyboardKey.ENTER)
+		key_ctrl_v_pressed =
+			rl.IsKeyPressed(.V) && (rl.IsKeyDown(.LEFT_CONTROL) || rl.IsKeyDown(.RIGHT_CONTROL))
 
 		last_key_pressed := rl.GetCharPressed()
 		key_last_char_pressed = {}
 		if last_key_pressed >= 32 && last_key_pressed < 127 && !key_show_console_pressed {
 			key_last_char_pressed = u8(last_key_pressed)
+			if last_key_pressed == 'v' {
+				last_key_pressed = {}
+			}
 		}
 
 
 		// === STATE ===
+		if is_completed && ui_state != .Console {
+			ui_state = .Game_Over
+		}
+
+
 		if key_show_attacked_squares_pressed {
 			debug_show_attacked_squares = !debug_show_attacked_squares
 		}
@@ -278,7 +293,20 @@ main :: proc() {
 			}
 
 		case .Console:
-			if key_last_char_pressed != 0 && console_input_buffer_length < 255 {
+			if key_ctrl_v_pressed {
+				for c in string(rl.GetClipboardText()) {
+					if console_input_buffer_length >= CONSOLE_INPUT_BUFFER_SIZE - 1 {
+						break
+					}
+					if c >= 32 && c < 127 {
+						console_input_buffer[console_input_buffer_length] = u8(c)
+						console_input_buffer_length += 1
+						console_input_buffer[console_input_buffer_length] = 0
+					}
+				}
+			}
+			if key_last_char_pressed != 0 &&
+			   console_input_buffer_length < CONSOLE_INPUT_BUFFER_SIZE - 1 {
 				console_input_buffer[console_input_buffer_length] = key_last_char_pressed
 				console_input_buffer_length += 1
 				console_input_buffer[console_input_buffer_length] = 0
@@ -289,10 +317,12 @@ main :: proc() {
 			}
 			if key_enter_pressed {
 				ui_state = .Default
+				process_command(&gs, string(cstring(&console_input_buffer[0])))
 				console_input_buffer[0] = 0
 				console_input_buffer_length = 0
-				process_command(&gs, string(cstring(&console_input_buffer[0])))
 			}
+
+		case .Game_Over:
 		}
 
 
@@ -474,5 +504,18 @@ main :: proc() {
 
 
 process_command :: proc(gs: ^Game_State, command: string) {
+	parts := strings.split_n(command, " ", 2)
+	op := parts[0]
 
+	if op == "new" {
+		gs.ui_state = .Default
+		reset_game(&gs.game)
+		return
+	}
+
+	if op == "loadfen" && len(parts) == 2 {
+		gs.ui_state = .Default
+		load_fen(&gs.game, parts[1])
+		return
+	}
 }
