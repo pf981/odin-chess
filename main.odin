@@ -38,7 +38,7 @@ Game :: struct {
 	completed_reason:         enum {
 		Checkmate,
 		Stalemate,
-		// TODO: Draw Offer, Insufficient Materials etc
+		// TODO: Draw Offer, Insufficient Materials, Resignation, 50 moves, Three fold etc
 	},
 	completed_outcome:        enum {
 		White_Win,
@@ -305,6 +305,34 @@ main :: proc() {
 					)
 				}
 			}
+		}
+
+		// Row and column annotation
+		for y in 0 ..< 8 {
+			rl.DrawTextEx(
+				font,
+				fmt.ctprintf("%d", 8 - y),
+				{
+					f32(board_left + square_length * i32(0)) + f32(square_length) * 0.05,
+					f32(board_top + square_length * i32(y)) + f32(square_length) * 0.05,
+				},
+				30 * f32(square_length) / 135,
+				1,
+				color_black_square if y % 2 == 1 else color_white_square,
+			)
+		}
+		for c, x in 'a' ..= 'h' {
+			rl.DrawTextEx(
+				font,
+				fmt.ctprintf("%c", c),
+				{
+					f32(board_left + square_length * i32(x)) + f32(square_length) * 0.85,
+					f32(board_top + square_length * i32(7)) + f32(square_length) * 0.8,
+				},
+				30 * f32(square_length) / 135,
+				1,
+				color_black_square if x % 2 == 0 else color_white_square,
+			)
 		}
 
 		// Dragged piece

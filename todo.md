@@ -1,5 +1,4 @@
 ## Todo
-- [] En Passant
 - [] Castling
 - [] Console
   - [] Load FEN
@@ -10,6 +9,7 @@
   - [] Move notation
   - [] Offer/Accept draw
   - [] Resign
+  - [] Flip board
 - [] CPU opponent (random valid moves. Black, white or both)
 - [] Additional end conditions
   - [] Threefold repetition
@@ -22,6 +22,7 @@
   - New. CPU or player
 
 ## Doing
-- [] Board row and column annotations
+- [] En Passant
 
 ## Done
+- [x] Board row and column annotations
