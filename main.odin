@@ -1,6 +1,5 @@
 package main
 
-import sa "core:container/small_array"
 import "core:fmt"
 import "core:math"
 import "core:reflect"
@@ -330,8 +329,11 @@ main :: proc() {
 					rl.PlaySound(sound_start)
 				} else if op == "loadfen" && len(parts) == 2 {
 					gs.ui_state = .Default
-					load_fen(&gs.game, parts[1])
-					rl.PlaySound(sound_start)
+					if !load_fen(&gs.game, parts[1]) {
+						fmt.println("Unable to load FEN")
+					} else {
+						rl.PlaySound(sound_start)
+					}
 				} else if op == "fps" && len(parts) == 2 {
 					if target_fps, ok := strconv.parse_int(parts[1]); ok {
 						rl.SetTargetFPS(i32(target_fps))
