@@ -4,6 +4,7 @@ import sa "core:container/small_array"
 import "core:fmt"
 import "core:math"
 import "core:reflect"
+import "core:strconv"
 import "core:strings"
 import rl "vendor:raylib"
 
@@ -239,10 +240,10 @@ main :: proc() {
 
 
 		// === STATE ===
+
 		if is_completed && ui_state != .Console {
 			ui_state = .Game_Over
 		}
-
 
 		if key_show_attacked_squares_pressed {
 			debug_show_attacked_squares = !debug_show_attacked_squares
@@ -331,7 +332,10 @@ main :: proc() {
 					gs.ui_state = .Default
 					load_fen(&gs.game, parts[1])
 					rl.PlaySound(sound_start)
-					return
+				} else if op == "fps" && len(parts) == 2 {
+					if target_fps, ok := strconv.parse_int(parts[1]); ok {
+						rl.SetTargetFPS(i32(target_fps))
+					}
 				} else {
 					fmt.printfln("Unable to process command '%s'", command)
 				}

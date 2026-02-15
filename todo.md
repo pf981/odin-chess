@@ -23,6 +23,7 @@
 ## Doing
 
 ## Done
+- [x] Add command to set FPS - "fps 120"; "fps 0" for unlimited
 - [x] Add start game sound
 - [x] Disable input on completion
 - [x] Console
