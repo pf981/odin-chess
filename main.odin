@@ -85,7 +85,9 @@ Game_State :: struct {
 	key_show_attacked_squares_pressed: bool,
 	key_show_debug_pressed:            bool,
 	key_show_console_pressed:          bool,
-	last_key_pressed:                  rl.KeyboardKey,
+	key_backspace_pressed:             bool,
+	key_enter_pressed:                 bool,
+	key_last_char_pressed:             u8,
 
 	// Key Mapping
 	key_show_attacked_squares:         rl.KeyboardKey,
@@ -213,12 +215,14 @@ main :: proc() {
 			0 <= mouse_board_x && mouse_board_x < 8 && 0 <= mouse_board_y && mouse_board_y < 8
 		key_show_attacked_squares_pressed = rl.IsKeyPressed(key_show_attacked_squares)
 		key_show_debug_pressed = rl.IsKeyPressed(key_show_debug)
-		last_key_pressed = rl.GetKeyPressed()
+		key_show_console_pressed = rl.IsKeyPressed(key_show_console)
+		key_backspace_pressed = rl.IsKeyPressed(rl.KeyboardKey.BACKSPACE)
+		key_enter_pressed = rl.IsKeyPressed(rl.KeyboardKey.ENTER)
 
-		key_show_console_pressed = false
-		if last_key_pressed == key_show_console {
-			key_show_console_pressed = true
-			last_key_pressed = rl.GetKeyPressed()
+		last_key_pressed := rl.GetCharPressed()
+		key_last_char_pressed = {}
+		if last_key_pressed >= 32 && last_key_pressed < 127 && !key_show_console_pressed {
+			key_last_char_pressed = u8(last_key_pressed)
 		}
 
 
@@ -274,13 +278,20 @@ main :: proc() {
 			}
 
 		case .Console:
-			if last_key_pressed != rl.KeyboardKey.KEY_NULL && console_input_buffer_length < 255 {
-				key := i32(last_key_pressed)
-				if key >= 32 && key <= 126 {
-					console_input_buffer[console_input_buffer_length] = u8(key)
-					console_input_buffer_length += 1
-					console_input_buffer[console_input_buffer_length] = 0
-				}
+			if key_last_char_pressed != 0 && console_input_buffer_length < 255 {
+				console_input_buffer[console_input_buffer_length] = key_last_char_pressed
+				console_input_buffer_length += 1
+				console_input_buffer[console_input_buffer_length] = 0
+			}
+			if key_backspace_pressed {
+				console_input_buffer_length -= 1
+				console_input_buffer[console_input_buffer_length] = 0
+			}
+			if key_enter_pressed {
+				ui_state = .Default
+				console_input_buffer[0] = 0
+				console_input_buffer_length = 0
+				process_command(&gs, string(cstring(&console_input_buffer[0])))
 			}
 		}
 
@@ -459,4 +470,9 @@ main :: proc() {
 
 		free_all(context.temp_allocator)
 	}
+}
+
+
+process_command :: proc(gs: ^Game_State, command: string) {
+
 }
