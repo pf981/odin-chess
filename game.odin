@@ -155,7 +155,8 @@ update_moves :: proc(using game: ^Game) {
 					ny = iy + dir
 					if in_bounds(nx, ny) {
 						t := board[nx][ny]
-						if t.active && t.color != active_color {
+						if (t.active && t.color != active_color) ||
+						   (en_passant_target_square == {nx, ny}) {
 							add_move_if_legal(game, ix, iy, nx, ny)
 						}
 					}
@@ -281,9 +282,33 @@ make_move :: proc(using game: ^Game, from_x: i32, from_y: i32, to_x: i32, to_y: 
 		last_move_was_capture = true
 	}
 
+	// Castling
+	// TODO: Move rook on castling
+	if board[from_x][from_y].piece_type == .King {
+		can_castle_kingside[active_color] = false
+		can_castle_queenside[active_color] = false
+	}
+	if from_x == 0 && from_y == (0 if active_color == .Black else 7) {
+		can_castle_queenside[active_color] = false
+	}
+	if from_x == 7 && from_y == (0 if active_color == .Black else 7) {
+		can_castle_kingside[active_color] = false
+	}
+
+	// En Passant
+	if board[from_x][from_y].piece_type == .Pawn && en_passant_target_square == {to_x, to_y} {
+		board[to_x][from_y].active = false
+		last_move_was_capture = true
+	}
+	en_passant_target_square = {-1, -1}
+	if board[from_x][from_y].piece_type == .Pawn && abs(from_y - to_y) > 1 {
+		en_passant_target_square = {from_x, (from_y + to_y) / 2}
+	}
+
 	board[to_x][to_y] = board[from_x][from_y]
 	board[from_x][from_y].active = false
 	active_color = .White if active_color == .Black else .Black
+
 
 	outer: for x in 0 ..< 8 {
 		for y in 0 ..< 8 {
@@ -300,36 +325,6 @@ make_move :: proc(using game: ^Game, from_x: i32, from_y: i32, to_x: i32, to_y: 
 	update_moves(game)
 }
 
-/*
-Castling - including whether can castle king/queenside
-Pawn Promotion
-
-For sounds, we need make_move to return
- - If it results in check
- - If it results in capture
- - If it is castling
- - If it results in completed (that will come from state)
-*/
-
-
-/*
-iterate over board to get attacked_squares bitboard
-Determine if in check
-moves_active 8x8 bitboards
-
-King: Castle (avoid through check), avoid check
-pawn captures, pawn double moves, enpassent, promotion
-Can't move if results in check?
-
-When in check, can block (sometimes)
-When not in check, cannot move a piece resulting in discovered check on yourself
-Sounds like, I have to simulate the move, check if it is check and only accept it as a candidate if it doesn't result in check
-
----
-king_x, kingy
-square_is_attacked()
-*/
-
 load_fen :: proc(g: ^Game, fen: string) -> bool {
 	parts := strings.split(fen, " ")
 	if len(parts) < 4 {
@@ -343,8 +338,8 @@ load_fen :: proc(g: ^Game, fen: string) -> bool {
 	enpassant := parts[3]
 
 	tmp_board: [8][8]Piece
-	tmp_can_castle_k: [2]bool
-	tmp_can_castle_q: [2]bool
+	tmp_can_castle_k: [Color]bool
+	tmp_can_castle_q: [Color]bool
 	tmp_ep: [2]i32 = {-1, -1}
 	tmp_active_color: Color
 
@@ -472,7 +467,6 @@ load_fen :: proc(g: ^Game, fen: string) -> bool {
 	g.can_castle_queenside = tmp_can_castle_q
 	g.en_passant_target_square = tmp_ep
 	g.active_color = tmp_active_color
-	// gs.ui_state = .Default
 
 	update_moves(g)
 

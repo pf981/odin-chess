@@ -1,10 +1,10 @@
 ## Todo
-- [] Castling
 - [] Console
   - [] Load FEN
   - [] New
   - [] Export FEN
-- [] Game completion screen with "new" button
+  - [] Set any field in Game_State
+- [] Game completion animation. Disable input on completion
 - [] Right UI
   - [] Move notation
   - [] Offer/Accept draw
@@ -20,9 +20,11 @@
 - [] Flip board
 - [] Menu
   - New. CPU or player
+- [] Play board reset sound on new game
 
 ## Doing
-- [] En Passant
+- [] Castling
 
 ## Done
+- [x] En Passant
 - [x] Board row and column annotations

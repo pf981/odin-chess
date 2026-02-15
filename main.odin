@@ -1,6 +1,7 @@
 package main
 
 import "core:fmt"
+import "core:math"
 import "core:reflect"
 import rl "vendor:raylib"
 
@@ -47,8 +48,8 @@ Game :: struct {
 	},
 	board:                    [8][8]Piece,
 	active_color:             Color,
-	can_castle_kingside:      [2]bool,
-	can_castle_queenside:     [2]bool,
+	can_castle_kingside:      [Color]bool,
+	can_castle_queenside:     [Color]bool,
 	en_passant_target_square: [2]i32,
 	moves:                    [8][8]Bitboard,
 
@@ -104,7 +105,7 @@ Game_State :: struct {
 }
 
 main :: proc() {
-	gs := Game_State {
+	using gs := Game_State {
 		screen_width              = 1920,
 		screen_height             = 1080,
 		square_length             = 1080 / 8,
@@ -122,7 +123,6 @@ main :: proc() {
 		debug_x                   = 10,
 		debug_y                   = 10,
 	}
-	using gs
 
 	if !load_fen(&gs, "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1") {
 		fmt.println("Unable to load FEN")
@@ -192,8 +192,8 @@ main :: proc() {
 
 		left_mouse_clicked = rl.IsMouseButtonDown(.LEFT)
 		mouse_pos = rl.GetMousePosition()
-		mouse_board_x = i32((mouse_pos[0] - f32(board_left)) / f32(square_length))
-		mouse_board_y = i32((mouse_pos[1] - f32(board_top)) / f32(square_length))
+		mouse_board_x = i32(math.floor((mouse_pos[0] - f32(board_left)) / f32(square_length)))
+		mouse_board_y = i32(math.floor((mouse_pos[1] - f32(board_top)) / f32(square_length)))
 		mouse_board_is_valid =
 			0 <= mouse_board_x && mouse_board_x < 8 && 0 <= mouse_board_y && mouse_board_y < 8
 		key_show_attacked_squares_pressed = rl.IsKeyPressed(key_show_attacked_squares)
