@@ -26,7 +26,7 @@ is_square_attacked :: proc(g: Game, tx: i32, ty: i32) -> bool {
 
 			switch p.piece_type {
 			case .Pawn:
-				dir := i32(1 if (by == .White) else -1)
+				dir := i32(-1 if (by == .White) else 1)
 				if dy == dir && (dx == 1 || dx == -1) {
 					return true
 				}
@@ -84,64 +84,19 @@ is_square_attacked :: proc(g: Game, tx: i32, ty: i32) -> bool {
 
 
 update_moves :: proc(g: ^Game) {
-	// state:                    State,
+	// is_completed:             bool,
 	// board:                    [8][8]Piece,
 	// active_color:             Color,
 	// can_castle_kingside:      [2]bool,
 	// can_castle_queenside:     [2]bool,
 	// en_passant_target_square: [2]i32,
 	// moves:                    [8][8]Bitboard,
-	// dragging_piece_x:         i32,
-	// dragging_piece_y:         i32,
 	using g
 
-	// add_move :: proc(
-	// 	board: [8][8]Piece,
-	// 	active_color: Color,
-	// 	x: i32,
-	// 	y: i32,
-	// 	nx: i32,
-	// 	ny: i32,
-	// 	king_x: i32,
-	// 	king_y: i32,
-	// ) {
-	// 	board := board
-	// 	if !in_bounds(nx, ny) {
-	// 		return
-	// 	}
-	// 	target := board[nx][ny]
-	// 	if target.active && target.color == active_color {
-	// 		return
-	// 	}
-
-	// 	// simulate
-	// 	backup_from := board[x][y]
-	// 	backup_to := board[nx][ny]
-
-	// 	board[nx][ny] = backup_from
-	// 	board[x][y] = Piece{}
-
-	// 	test_king_x := king_x
-	// 	test_king_y := king_y
-	// 	if p.piece_type == .King {
-	// 		test_king_x = nx
-	// 		test_king_y = ny
-	// 	}
-
-	// 	in_check := is_square_attacked(
-	// 		test_king_x,
-	// 		test_king_y,
-	// 		.Black if active_color == .White else .White,
-	// 	)
-
-	// 	// restore
-	// 	board[x][y] = backup_from
-	// 	board[nx][ny] = backup_to
-
-	// 	if !in_check {
-	// 		moves[x][y] += Bitboard{ny * 8 + nx}
-	// 	}
-	// }
+	if is_completed {
+		moves = {}
+		return
+	}
 
 	king_x: i32
 	king_y: i32

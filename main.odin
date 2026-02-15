@@ -23,7 +23,6 @@ Color :: enum {
 UI_State :: enum {
 	Default,
 	Dragging,
-	Debug_Show_Attacked_Squares,
 	// TODO: Menu, Console
 }
 
@@ -82,6 +81,7 @@ Game_State :: struct {
 
 	// Debug
 	debug_show:                        bool,
+	debug_show_attacked_squares:       bool,
 	debug_line_height:                 i32,
 	debug_column_width:                i32,
 	debug_x:                           i32,
@@ -190,10 +190,6 @@ main :: proc() {
 				rl.PlaySound(sound_pickup)
 			}
 
-			if key_show_attacked_squares_pressed {
-				ui_state = .Debug_Show_Attacked_Squares
-			}
-
 
 		case .Dragging:
 			if !left_mouse_clicked {
@@ -212,15 +208,11 @@ main :: proc() {
 				}
 				ui_state = .Default
 			}
+		}
 
-			if key_show_attacked_squares_pressed {
-				ui_state = .Debug_Show_Attacked_Squares
-			}
-		case .Debug_Show_Attacked_Squares:
-			if key_show_attacked_squares_pressed {
-				ui_state = .Default
-			}
 
+		if key_show_attacked_squares_pressed {
+			debug_show_attacked_squares = !debug_show_attacked_squares
 		}
 
 
@@ -273,8 +265,7 @@ main :: proc() {
 				// Attacking dot
 				// if ui_state == .Dragging &&
 				//    (x + (y * 8)) in moves[dragging_piece_x][dragging_piece_y] {
-				if ui_state == .Debug_Show_Attacked_Squares &&
-				   is_square_attacked(game, i32(x), i32(y)) {
+				if debug_show_attacked_squares && is_square_attacked(game, i32(x), i32(y)) {
 					rl.DrawCircle(
 						board_left + square_length * i32(x) + square_length / 2,
 						board_top + square_length * i32(y) + square_length / 2,
