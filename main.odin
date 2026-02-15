@@ -34,10 +34,19 @@ Piece :: struct {
 
 Bitboard :: bit_set[0 ..< 64]
 
+
 Game :: struct {
 	is_completed:             bool,
-	// completed_reason Checkmate, Stalemate, Draw Offer, Insufficient Materials etc
-	// completed_outcome (0-1, 1-0, 1/2-1/2)
+	completed_reason:         enum {
+		Checkmate,
+		Stalemate,
+		// Draw Offer, Insufficient Materials etc
+	},
+	completed_outcome:        enum {
+		White_Win,
+		Black_Win,
+		Draw,
+	},
 	board:                    [8][8]Piece,
 	active_color:             Color,
 	can_castle_kingside:      [2]bool,
@@ -82,22 +91,21 @@ Game_State :: struct {
 	// Debug
 	debug_show:                        bool,
 	debug_show_attacked_squares:       bool,
-	debug_line_height:                 i32,
-	debug_column_width:                i32,
-	debug_x:                           i32,
-	debug_y:                           i32,
+	debug_line_height:                 f32,
+	debug_x:                           f32,
+	debug_y:                           f32,
 	dt:                                f32,
 	fps:                               i32,
 }
 
 main :: proc() {
 	gs := Game_State {
-		screen_width              = 1280,
-		screen_height             = 720,
-		square_length             = 720 / 8,
-		board_left                = (1280 - 720) / 2,
-		board_top                 = (720 - 720) / 2,
-		piece_scale               = 720.0 / 8 / 480.0,
+		screen_width              = 1920,
+		screen_height             = 1080,
+		square_length             = 1080 / 8,
+		board_left                = (1920 - 1080) / 2,
+		board_top                 = (1080 - 1080) / 2,
+		piece_scale               = 1080.0 / 8 / 480.0,
 		key_show_attacked_squares = rl.KeyboardKey.F1,
 		color_white_square        = rl.GetColor(0xEBECD0FF),
 		color_black_square        = rl.GetColor(0x739552FF),
@@ -151,6 +159,11 @@ main :: proc() {
 			rl.UnloadTexture(pieces_textures[color][piece_type])
 		}
 	}
+
+	font := rl.LoadFontEx("assets/FiraMonoNerdFontMono-Regular.otf", 64, nil, 0)
+	rl.SetTextureFilter(font.texture, .BILINEAR)
+	defer rl.UnloadFont(font)
+
 
 	for !rl.WindowShouldClose() {
 		dt = rl.GetFrameTime()
@@ -291,19 +304,42 @@ main :: proc() {
 		// Debug text
 		if debug_show {
 			names := reflect.struct_field_names(typeid_of(Game_State))
-			for name, i in names {
-				if name == "board" || name == "moves" || name == "game" {
+			row := 0
+			for name in names {
+				if name == "game" {
 					continue
 				}
 				val_any := reflect.struct_field_value_by_name(gs, name)
 
-				rl.DrawText(
+				rl.DrawTextEx(
+					font,
 					fmt.ctprintf("%s: %v\n", name, val_any),
-					debug_x,
-					debug_y + i32(i) * debug_line_height,
-					20,
+					{debug_x, debug_y + f32(row) * debug_line_height},
+					18,
+					1,
 					rl.WHITE,
 				)
+				row += 1
+			}
+
+			row += 1
+
+			names = reflect.struct_field_names(typeid_of(Game))
+			for name in names {
+				if name == "board" || name == "moves" {
+					continue
+				}
+				val_any := reflect.struct_field_value_by_name(game, name)
+
+				rl.DrawTextEx(
+					font,
+					fmt.ctprintf("%s: %v\n", name, val_any),
+					{debug_x, debug_y + f32(row) * debug_line_height},
+					18,
+					1,
+					rl.WHITE,
+				)
+				row += 1
 			}
 		}
 

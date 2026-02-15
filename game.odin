@@ -84,54 +84,197 @@ is_square_attacked :: proc(g: Game, tx: i32, ty: i32) -> bool {
 
 
 update_moves :: proc(g: ^Game) {
-	// is_completed:             bool,
-	// board:                    [8][8]Piece,
-	// active_color:             Color,
-	// can_castle_kingside:      [2]bool,
-	// can_castle_queenside:     [2]bool,
-	// en_passant_target_square: [2]i32,
-	// moves:                    [8][8]Bitboard,
 	using g
 
+	moves = {}
 	if is_completed {
-		moves = {}
 		return
 	}
 
-	king_x: i32
-	king_y: i32
-	outer: for x in 0 ..< 8 {
-		for y in 0 ..< 8 {
-			p := board[x][y]
-			if p.active && p.color == active_color && p.piece_type == .King {
-				king_x = i32(x)
-				king_y = i32(y)
-				break outer
+	add_move_if_legal :: proc(g: ^Game, from_x: i32, from_y: i32, to_x: i32, to_y: i32) {
+		using g
+		orig_from := board[from_x][from_y]
+		orig_to := board[to_x][to_y]
+
+		board[to_x][to_y] = orig_from
+		board[from_x][from_y] = Piece{}
+
+		in_check := false
+
+		// Find king of active_color
+		for x in 0 ..< 8 {
+			for y in 0 ..< 8 {
+				p := board[x][y]
+				if p.active && p.color == active_color && p.piece_type == .King {
+					if is_square_attacked(g^, i32(x), i32(y)) {
+						in_check = true
+					}
+					break
+				}
 			}
+			if in_check {break}
+		}
+
+		// Restore board
+		board[from_x][from_y] = orig_from
+		board[to_x][to_y] = orig_to
+
+		if !in_check {
+			idx := to_x * 8 + to_y
+			moves[from_x][from_y] += Bitboard{int(idx)}
 		}
 	}
 
-	// Generate candidate moves
-	candidate_moves: [8][8]Bitboard
 	for x in 0 ..< 8 {
 		for y in 0 ..< 8 {
 			p := board[x][y]
-			if !p.active || p.color != active_color {continue}
+			if !p.active || p.color != active_color {
+				continue
+			}
+
+			ix := i32(x)
+			iy := i32(y)
+
 			switch p.piece_type {
+
 			case .Pawn:
-			case .Rook:
+				dir := i32(-1 if active_color == .White else 1)
+				start_rank := i32(6 if active_color == .White else 1)
+
+				// forward 1
+				nx, ny := ix, iy + dir
+				if in_bounds(nx, ny) && !board[nx][ny].active {
+					add_move_if_legal(g, ix, iy, nx, ny)
+
+					// forward 2
+					if iy == start_rank {
+						ny2 := iy + 2 * dir
+						if in_bounds(nx, ny2) && !board[nx][ny2].active {
+							add_move_if_legal(g, ix, iy, nx, ny2)
+						}
+					}
+				}
+
+				// captures
+				for dx in ([]i32{-1, 1}) {
+					nx = ix + dx
+					ny = iy + dir
+					if in_bounds(nx, ny) {
+						t := board[nx][ny]
+						if t.active && t.color != active_color {
+							add_move_if_legal(g, ix, iy, nx, ny)
+						}
+					}
+				}
+
 			case .Knight:
-			case .Bishop:
-			case .Queen:
+				offsets := [8][2]i32 {
+					{1, 2},
+					{2, 1},
+					{2, -1},
+					{1, -2},
+					{-1, -2},
+					{-2, -1},
+					{-2, 1},
+					{-1, 2},
+				}
+				for o in offsets {
+					nx := ix + o[0]
+					ny := iy + o[1]
+					if in_bounds(nx, ny) {
+						t := board[nx][ny]
+						if !t.active || t.color != active_color {
+							add_move_if_legal(g, ix, iy, nx, ny)
+						}
+					}
+				}
+
+			case .Bishop, .Rook, .Queen:
+				dirs: [8][2]i32
+				count := 0
+
+				if p.piece_type == .Bishop || p.piece_type == .Queen {
+					dirs[count] = {1, 1}; count += 1
+					dirs[count] = {1, -1}; count += 1
+					dirs[count] = {-1, 1}; count += 1
+					dirs[count] = {-1, -1}; count += 1
+				}
+				if p.piece_type == .Rook || p.piece_type == .Queen {
+					dirs[count] = {1, 0}; count += 1
+					dirs[count] = {-1, 0}; count += 1
+					dirs[count] = {0, 1}; count += 1
+					dirs[count] = {0, -1}; count += 1
+				}
+
+				for i in 0 ..< count {
+					dx := dirs[i][0]
+					dy := dirs[i][1]
+					nx := ix + dx
+					ny := iy + dy
+					for in_bounds(nx, ny) {
+						t := board[nx][ny]
+						if t.active {
+							if t.color != active_color {
+								add_move_if_legal(g, ix, iy, nx, ny)
+							}
+							break
+						}
+						add_move_if_legal(g, ix, iy, nx, ny)
+						nx += dx
+						ny += dy
+					}
+				}
+
 			case .King:
+				for dx in -1 ..= 1 {
+					for dy in -1 ..= 1 {
+						if dx == 0 && dy == 0 {continue}
+						nx := ix + i32(dx)
+						ny := iy + i32(dy)
+						if in_bounds(nx, ny) {
+							t := board[nx][ny]
+							if !t.active || t.color != active_color {
+								add_move_if_legal(g, ix, iy, nx, ny)
+							}
+						}
+					}
+				}
 			}
 		}
 	}
 
-	// Simulate each candidate move, determine if results in self-check. Self-check moves are excluded.
+	// Check for completion (mate or stalemate)
+	has_move := false
+	for x in 0 ..< 8 {
+		for y in 0 ..< 8 {
+			if moves[x][y] != {} {
+				has_move = true
+				break
+			}
+		}
+		if has_move {break}
+	}
 
-	// If there are no valid moves: if it is check then it is checkmate, if it is not check then it is stalemate.
-	// moves = candidate_moves
+	if !has_move {
+		// find king
+		for x in 0 ..< 8 {
+			for y in 0 ..< 8 {
+				p := board[x][y]
+				if p.active && p.color == active_color && p.piece_type == .King {
+					if is_square_attacked(g^, i32(x), i32(y)) {
+						is_completed = true
+						completed_reason = .Checkmate
+						completed_outcome = .White_Win if active_color == .White else .Black_Win
+					} else {
+						is_completed = true
+						completed_reason = .Stalemate
+						completed_outcome = .Draw
+					}
+					return
+				}
+			}
+		}
+	}
 }
 
 /*
