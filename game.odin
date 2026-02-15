@@ -234,6 +234,24 @@ update_moves :: proc(using game: ^Game) {
 						}
 					}
 				}
+				king_row := i32(0 if active_color == .Black else 7)
+				if can_castle_kingside[active_color] &&
+				   !in_check &&
+				   !board[5][king_row].active &&
+				   !board[6][king_row].active &&
+				   !is_square_attacked(game^, 5, king_row) &&
+				   !is_square_attacked(game^, 6, king_row) {
+					add_move_if_legal(game, ix, iy, 6, king_row)
+				}
+				if can_castle_queenside[active_color] &&
+				   !in_check &&
+				   !board[1][king_row].active &&
+				   !board[2][king_row].active &&
+				   !board[3][king_row].active &&
+				   !is_square_attacked(game^, 2, king_row) &&
+				   !is_square_attacked(game^, 3, king_row) {
+					add_move_if_legal(game, ix, iy, 2, king_row)
+				}
 			}
 		}
 	}
@@ -284,6 +302,20 @@ make_move :: proc(using game: ^Game, from_x: i32, from_y: i32, to_x: i32, to_y: 
 
 	// Castling
 	// TODO: Move rook on castling
+	if can_castle_kingside[active_color] &&
+	   board[from_x][from_y].piece_type == .King &&
+	   to_x == 2 {
+		board[0][from_y].active = false
+		board[3][from_y] = {true, .Rook, active_color}
+		last_move_was_castle = true
+	}
+	if can_castle_queenside[active_color] &&
+	   board[from_x][from_y].piece_type == .King &&
+	   to_x == 6 {
+		board[7][from_y].active = false
+		board[5][from_y] = {true, .Rook, active_color}
+		last_move_was_castle = true
+	}
 	if board[from_x][from_y].piece_type == .King {
 		can_castle_kingside[active_color] = false
 		can_castle_queenside[active_color] = false
@@ -308,7 +340,6 @@ make_move :: proc(using game: ^Game, from_x: i32, from_y: i32, to_x: i32, to_y: 
 	board[to_x][to_y] = board[from_x][from_y]
 	board[from_x][from_y].active = false
 	active_color = .White if active_color == .Black else .Black
-
 
 	outer: for x in 0 ..< 8 {
 		for y in 0 ..< 8 {

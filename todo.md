@@ -1,9 +1,4 @@
 ## Todo
-- [] Console
-  - [] Load FEN
-  - [] New
-  - [] Export FEN
-  - [] Set any field in Game_State
 - [] Game completion animation. Disable input on completion
 - [] Right UI
   - [] Move notation
@@ -23,8 +18,13 @@
 - [] Play board reset sound on new game
 
 ## Doing
-- [] Castling
+- [] Console
+  - [] Load FEN
+  - [] New
+  - [] Export FEN
+  - [] Set any field in Game_State
 
 ## Done
+- [x] Castling
 - [x] En Passant
 - [x] Board row and column annotations
