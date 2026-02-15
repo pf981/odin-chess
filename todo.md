@@ -19,6 +19,10 @@
 
 ## Doing
 - [] Console
+  - [x] Make appear
+  - [x] Input text
+  - [] Handle shift
+  - [] Handle backspace
   - [] Load FEN
   - [] New
   - [] Export FEN

@@ -1,5 +1,6 @@
 package main
 
+import sa "core:container/small_array"
 import "core:fmt"
 import "core:math"
 import "core:reflect"
@@ -22,7 +23,7 @@ Color :: enum {
 UI_State :: enum {
 	Default,
 	Dragging,
-	// TODO: Menu, Console
+	Console,
 }
 
 Piece :: struct {
@@ -83,16 +84,26 @@ Game_State :: struct {
 	mouse_board_y:                     i32,
 	key_show_attacked_squares_pressed: bool,
 	key_show_debug_pressed:            bool,
+	key_show_console_pressed:          bool,
+	last_key_pressed:                  rl.KeyboardKey,
 
 	// Key Mapping
 	key_show_attacked_squares:         rl.KeyboardKey,
 	key_show_debug:                    rl.KeyboardKey,
+	key_show_console:                  rl.KeyboardKey,
 
 	// Colors
 	color_white_square:                rl.Color,
 	color_black_square:                rl.Color,
 	color_move_to:                     rl.Color,
 	color_attacked:                    rl.Color,
+	color_console_bg:                  rl.Color,
+	color_console_font:                rl.Color,
+
+	// Console
+	console_font_size:                 f32,
+	console_input_buffer:              [256]u8,
+	console_input_buffer_length:       i32,
 
 	// Debug
 	debug_show:                        bool,
@@ -114,10 +125,14 @@ main :: proc() {
 		piece_scale               = 1080.0 / 8 / 480.0,
 		key_show_attacked_squares = rl.KeyboardKey.F1,
 		key_show_debug            = rl.KeyboardKey.F2,
+		key_show_console          = rl.KeyboardKey.GRAVE,
 		color_white_square        = rl.GetColor(0xEBECD0FF),
 		color_black_square        = rl.GetColor(0x739552FF),
 		color_move_to             = rl.Fade(rl.BLUE, 0.7),
 		color_attacked            = rl.Fade(rl.RED, 0.7),
+		color_console_bg          = rl.Fade(rl.GetColor(0x232627FF), 0.95),
+		color_console_font        = rl.WHITE,
+		console_font_size         = 20,
 		debug_show                = true,
 		debug_line_height         = 20,
 		debug_x                   = 10,
@@ -198,9 +213,27 @@ main :: proc() {
 			0 <= mouse_board_x && mouse_board_x < 8 && 0 <= mouse_board_y && mouse_board_y < 8
 		key_show_attacked_squares_pressed = rl.IsKeyPressed(key_show_attacked_squares)
 		key_show_debug_pressed = rl.IsKeyPressed(key_show_debug)
+		last_key_pressed = rl.GetKeyPressed()
+
+		key_show_console_pressed = false
+		if last_key_pressed == key_show_console {
+			key_show_console_pressed = true
+			last_key_pressed = rl.GetKeyPressed()
+		}
 
 
 		// === STATE ===
+		if key_show_attacked_squares_pressed {
+			debug_show_attacked_squares = !debug_show_attacked_squares
+		}
+		if key_show_debug_pressed {
+			debug_show = !debug_show
+		}
+		if key_show_console_pressed {
+			ui_state = .Console if ui_state != .Console else .Default
+			console_input_buffer[0] = 0
+			console_input_buffer_length = 0
+		}
 
 		switch ui_state {
 		case .Default:
@@ -213,7 +246,6 @@ main :: proc() {
 				ui_state = .Dragging
 				rl.PlaySound(sound_pickup)
 			}
-
 
 		case .Dragging:
 			if !left_mouse_clicked {
@@ -240,13 +272,16 @@ main :: proc() {
 				}
 				ui_state = .Default
 			}
-		}
 
-		if key_show_attacked_squares_pressed {
-			debug_show_attacked_squares = !debug_show_attacked_squares
-		}
-		if key_show_debug_pressed {
-			debug_show = !debug_show
+		case .Console:
+			if last_key_pressed != rl.KeyboardKey.KEY_NULL && console_input_buffer_length < 255 {
+				key := i32(last_key_pressed)
+				if key >= 32 && key <= 126 {
+					console_input_buffer[console_input_buffer_length] = u8(key)
+					console_input_buffer_length += 1
+					console_input_buffer[console_input_buffer_length] = 0
+				}
+			}
 		}
 
 
@@ -352,7 +387,9 @@ main :: proc() {
 			names := reflect.struct_field_names(typeid_of(Game_State))
 			row := 0
 			for name in names {
-				if name == "game" {
+				if name == "game" ||
+				   name == "console_input_buffer" ||
+				   name == "console_lookback_buffer" {
 					continue
 				}
 				val_any := reflect.struct_field_value_by_name(gs, name)
@@ -389,7 +426,37 @@ main :: proc() {
 			}
 		}
 
+		// Console
+		if ui_state == .Console {
+			console_y := 0.5 * f32(screen_height)
+			if console_y < 100 {
+				console_y = f32(screen_height)
+			}
+
+			rl.DrawRectangle(0, i32(console_y - 50), screen_width, 50, color_console_bg)
+
+			dimensions := rl.MeasureTextEx(
+				font,
+				cstring(&console_input_buffer[0]),
+				console_font_size,
+				1,
+			)
+
+			rl.DrawTextEx(
+				font,
+				cstring(&console_input_buffer[0]),
+				{
+					(f32(screen_width) / 2) - (dimensions[0] / 2),
+					console_y - 50 / 2 - (dimensions[1] / 2),
+				},
+				console_font_size,
+				1,
+				color_console_font,
+			)
+		}
+
 		rl.EndDrawing()
-		// free_all(context.temp_allocator)
+
+		free_all(context.temp_allocator)
 	}
 }
