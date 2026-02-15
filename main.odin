@@ -2,8 +2,6 @@ package main
 
 import "core:fmt"
 import "core:reflect"
-import "core:strings"
-import "core:unicode"
 import rl "vendor:raylib"
 
 Piece_Type :: enum {
@@ -40,7 +38,7 @@ Game :: struct {
 	completed_reason:         enum {
 		Checkmate,
 		Stalemate,
-		// Draw Offer, Insufficient Materials etc
+		// TODO: Draw Offer, Insufficient Materials etc
 	},
 	completed_outcome:        enum {
 		White_Win,
@@ -53,6 +51,11 @@ Game :: struct {
 	can_castle_queenside:     [2]bool,
 	en_passant_target_square: [2]i32,
 	moves:                    [8][8]Bitboard,
+
+	// For sounds
+	in_check:                 bool,
+	last_move_was_capture:    bool,
+	last_move_was_castle:     bool,
 }
 
 Game_State :: struct {
@@ -78,9 +81,11 @@ Game_State :: struct {
 	mouse_board_x:                     i32,
 	mouse_board_y:                     i32,
 	key_show_attacked_squares_pressed: bool,
+	key_show_debug_pressed:            bool,
 
 	// Key Mapping
 	key_show_attacked_squares:         rl.KeyboardKey,
+	key_show_debug:                    rl.KeyboardKey,
 
 	// Colors
 	color_white_square:                rl.Color,
@@ -107,6 +112,7 @@ main :: proc() {
 		board_top                 = (1080 - 1080) / 2,
 		piece_scale               = 1080.0 / 8 / 480.0,
 		key_show_attacked_squares = rl.KeyboardKey.F1,
+		key_show_debug            = rl.KeyboardKey.F2,
 		color_white_square        = rl.GetColor(0xEBECD0FF),
 		color_black_square        = rl.GetColor(0x739552FF),
 		color_move_to             = rl.Fade(rl.BLUE, 0.7),
@@ -135,10 +141,14 @@ main :: proc() {
 	sound_place := rl.LoadSound("assets/place.wav")
 	sound_take := rl.LoadSound("assets/take.wav")
 	sound_castle := rl.LoadSound("assets/castle.wav")
-	defer rl.UnloadSound(sound_pickup)
-	defer rl.UnloadSound(sound_place)
-	defer rl.UnloadSound(sound_take)
-	defer rl.UnloadSound(sound_castle)
+	sound_check := rl.LoadSound("assets/check.wav")
+	defer {
+		rl.UnloadSound(sound_pickup)
+		rl.UnloadSound(sound_place)
+		rl.UnloadSound(sound_take)
+		rl.UnloadSound(sound_castle)
+		rl.UnloadSound(sound_check)
+	}
 
 	// https://gitlab.com/zulban/chesscraft-creative-commons/-/tree/master/pieces/01_classic
 	pieces_textures: [2][6]rl.Texture2D
@@ -187,6 +197,7 @@ main :: proc() {
 		mouse_board_is_valid =
 			0 <= mouse_board_x && mouse_board_x < 8 && 0 <= mouse_board_y && mouse_board_y < 8
 		key_show_attacked_squares_pressed = rl.IsKeyPressed(key_show_attacked_squares)
+		key_show_debug_pressed = rl.IsKeyPressed(key_show_debug)
 
 
 		// === STATE ===
@@ -207,25 +218,35 @@ main :: proc() {
 		case .Dragging:
 			if !left_mouse_clicked {
 				if mouse_board_is_valid &&
-				   !(mouse_board_x == dragging_piece_x && mouse_board_y == dragging_piece_y) {
-					if board[mouse_board_x][mouse_board_y].active {
+				   int(mouse_board_x + 8 * mouse_board_y) in
+					   moves[dragging_piece_x][dragging_piece_y] {
+					make_move(
+						&game,
+						dragging_piece_x,
+						dragging_piece_y,
+						mouse_board_x,
+						mouse_board_y,
+					)
+
+					if in_check {
+						rl.PlaySound(sound_check)
+					} else if last_move_was_capture {
 						rl.PlaySound(sound_take)
+					} else if last_move_was_castle {
+						rl.PlaySound(sound_castle)
 					} else {
 						rl.PlaySound(sound_place)
 					}
-					board[mouse_board_x][mouse_board_y] = board[dragging_piece_x][dragging_piece_y]
-					board[dragging_piece_x][dragging_piece_y].active = false
-					active_color = .White if active_color == .Black else .Black
-
-					update_moves(&gs)
 				}
 				ui_state = .Default
 			}
 		}
 
-
 		if key_show_attacked_squares_pressed {
 			debug_show_attacked_squares = !debug_show_attacked_squares
+		}
+		if key_show_debug_pressed {
+			debug_show = !debug_show
 		}
 
 
@@ -266,7 +287,6 @@ main :: proc() {
 				// Move-to dot
 				if ui_state == .Dragging &&
 				   (x + (y * 8)) in moves[dragging_piece_x][dragging_piece_y] {
-					// if state == .Dragging {
 					rl.DrawCircle(
 						board_left + square_length * i32(x) + square_length / 2,
 						board_top + square_length * i32(y) + square_length / 2,
@@ -276,8 +296,6 @@ main :: proc() {
 				}
 
 				// Attacking dot
-				// if ui_state == .Dragging &&
-				//    (x + (y * 8)) in moves[dragging_piece_x][dragging_piece_y] {
 				if debug_show_attacked_squares && is_square_attacked(game, i32(x), i32(y)) {
 					rl.DrawCircle(
 						board_left + square_length * i32(x) + square_length / 2,

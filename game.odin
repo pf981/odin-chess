@@ -9,9 +9,7 @@ in_bounds :: #force_inline proc(x: i32, y: i32) -> bool {
 	return x >= 0 && x < 8 && y >= 0 && y < 8
 }
 
-is_square_attacked :: proc(g: Game, tx: i32, ty: i32) -> bool {
-	using g
-
+is_square_attacked :: proc(using game: Game, tx: i32, ty: i32) -> bool {
 	by := Color(.Black if active_color == .White else .White)
 
 	for x in 0 ..< 8 {
@@ -83,44 +81,40 @@ is_square_attacked :: proc(g: Game, tx: i32, ty: i32) -> bool {
 }
 
 
-update_moves :: proc(g: ^Game) {
-	using g
-
+update_moves :: proc(using game: ^Game) {
 	moves = {}
 	if is_completed {
 		return
 	}
 
-	add_move_if_legal :: proc(g: ^Game, from_x: i32, from_y: i32, to_x: i32, to_y: i32) {
-		using g
+	add_move_if_legal :: proc(using game: ^Game, from_x: i32, from_y: i32, to_x: i32, to_y: i32) {
 		orig_from := board[from_x][from_y]
 		orig_to := board[to_x][to_y]
 
 		board[to_x][to_y] = orig_from
 		board[from_x][from_y] = Piece{}
 
-		in_check := false
+		is_valid := true
 
 		// Find king of active_color
-		for x in 0 ..< 8 {
+		outer: for x in 0 ..< 8 {
 			for y in 0 ..< 8 {
 				p := board[x][y]
 				if p.active && p.color == active_color && p.piece_type == .King {
-					if is_square_attacked(g^, i32(x), i32(y)) {
-						in_check = true
+					if is_square_attacked(game^, i32(x), i32(y)) {
+						is_valid = false
 					}
-					break
+					break outer
 				}
 			}
-			if in_check {break}
 		}
 
 		// Restore board
 		board[from_x][from_y] = orig_from
 		board[to_x][to_y] = orig_to
 
-		if !in_check {
-			idx := to_x * 8 + to_y
+		if is_valid {
+			idx := to_x + to_y * 8
 			moves[from_x][from_y] += Bitboard{int(idx)}
 		}
 	}
@@ -144,13 +138,13 @@ update_moves :: proc(g: ^Game) {
 				// forward 1
 				nx, ny := ix, iy + dir
 				if in_bounds(nx, ny) && !board[nx][ny].active {
-					add_move_if_legal(g, ix, iy, nx, ny)
+					add_move_if_legal(game, ix, iy, nx, ny)
 
 					// forward 2
 					if iy == start_rank {
 						ny2 := iy + 2 * dir
 						if in_bounds(nx, ny2) && !board[nx][ny2].active {
-							add_move_if_legal(g, ix, iy, nx, ny2)
+							add_move_if_legal(game, ix, iy, nx, ny2)
 						}
 					}
 				}
@@ -162,7 +156,7 @@ update_moves :: proc(g: ^Game) {
 					if in_bounds(nx, ny) {
 						t := board[nx][ny]
 						if t.active && t.color != active_color {
-							add_move_if_legal(g, ix, iy, nx, ny)
+							add_move_if_legal(game, ix, iy, nx, ny)
 						}
 					}
 				}
@@ -184,7 +178,7 @@ update_moves :: proc(g: ^Game) {
 					if in_bounds(nx, ny) {
 						t := board[nx][ny]
 						if !t.active || t.color != active_color {
-							add_move_if_legal(g, ix, iy, nx, ny)
+							add_move_if_legal(game, ix, iy, nx, ny)
 						}
 					}
 				}
@@ -215,11 +209,11 @@ update_moves :: proc(g: ^Game) {
 						t := board[nx][ny]
 						if t.active {
 							if t.color != active_color {
-								add_move_if_legal(g, ix, iy, nx, ny)
+								add_move_if_legal(game, ix, iy, nx, ny)
 							}
 							break
 						}
-						add_move_if_legal(g, ix, iy, nx, ny)
+						add_move_if_legal(game, ix, iy, nx, ny)
 						nx += dx
 						ny += dy
 					}
@@ -234,7 +228,7 @@ update_moves :: proc(g: ^Game) {
 						if in_bounds(nx, ny) {
 							t := board[nx][ny]
 							if !t.active || t.color != active_color {
-								add_move_if_legal(g, ix, iy, nx, ny)
+								add_move_if_legal(game, ix, iy, nx, ny)
 							}
 						}
 					}
@@ -261,10 +255,10 @@ update_moves :: proc(g: ^Game) {
 			for y in 0 ..< 8 {
 				p := board[x][y]
 				if p.active && p.color == active_color && p.piece_type == .King {
-					if is_square_attacked(g^, i32(x), i32(y)) {
+					if is_square_attacked(game^, i32(x), i32(y)) {
 						is_completed = true
 						completed_reason = .Checkmate
-						completed_outcome = .White_Win if active_color == .White else .Black_Win
+						completed_outcome = .Black_Win if active_color == .White else .White_Win
 					} else {
 						is_completed = true
 						completed_reason = .Stalemate
@@ -276,6 +270,47 @@ update_moves :: proc(g: ^Game) {
 		}
 	}
 }
+
+make_move :: proc(using game: ^Game, from_x: i32, from_y: i32, to_x: i32, to_y: i32) {
+	// Assumes move is valid
+	in_check = false
+	last_move_was_capture = false
+	last_move_was_castle = false
+
+	if board[to_x][to_y].active {
+		last_move_was_capture = true
+	}
+
+	board[to_x][to_y] = board[from_x][from_y]
+	board[from_x][from_y].active = false
+	active_color = .White if active_color == .Black else .Black
+
+	outer: for x in 0 ..< 8 {
+		for y in 0 ..< 8 {
+			p := board[x][y]
+			if p.active && p.color == active_color && p.piece_type == .King {
+				if is_square_attacked(game^, i32(x), i32(y)) {
+					in_check = true
+				}
+				break outer
+			}
+		}
+	}
+
+	update_moves(game)
+}
+
+/*
+Castling - including whether can castle king/queenside
+Pawn Promotion
+
+For sounds, we need make_move to return
+ - If it results in check
+ - If it results in capture
+ - If it is castling
+ - If it results in completed (that will come from state)
+*/
+
 
 /*
 iterate over board to get attacked_squares bitboard
