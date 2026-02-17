@@ -2,6 +2,8 @@
 - [] Threefold repetition
 - [] Allocation tracker
 - [] Console logger
+- [] Underpromotion
+  - Option to choose what to promote to
 - [] Game completion animation
 - [] Right UI
   - [] Move notation
@@ -23,11 +25,12 @@
   - [] Modify any game state field - "set board_left 200"
 
 ## Doing
-- [] Properly handle halfmove_clock and fullmove_number
-  - [] Loading fen
-  - [] Update on move
+- [] Promotion to queen
 
 ## Done
+- [x] Properly handle halfmove_clock and fullmove_number
+  - [x] Loading fen
+  - [x] Update on move
 - [x] Fix bug: New, e4, press F3 to reload FEN, e5. e5 results in black pawn disappearing with "take" sound
   - Due to en passant target square being incorrect when loading FEN
 - [x] Generate FEN every move

@@ -86,8 +86,8 @@ Game :: struct {
 	can_castle_kingside:      [Color]bool,
 	can_castle_queenside:     [Color]bool,
 	en_passant_target_square: [2]i32,
-	halfmove_clock:           i32, // TODO
-	fullmove_number:          i32, // TODO
+	halfmove_clock:           i32,
+	fullmove_number:          i32,
 	moves:                    [8][8]Bitboard,
 	fen:                      Fixed_Cstring(128),
 
@@ -544,9 +544,6 @@ main :: proc() {
 			)
 			row += 1
 		}
-
-		// Debug: FEN
-
 
 		// Console
 		if ui_state == .Console {

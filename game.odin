@@ -3,6 +3,7 @@
 package main
 
 import "core:fmt"
+import "core:strconv"
 import "core:strings"
 import "core:unicode"
 
@@ -301,6 +302,15 @@ make_move :: proc(using game: ^Game, from_x: i32, from_y: i32, to_x: i32, to_y: 
 		last_move_was_capture = true
 	}
 
+	if active_color == .Black {
+		fullmove_number += 1
+	}
+	if last_move_was_capture || board[from_x][from_y].piece_type == .Pawn {
+		halfmove_clock = 0
+	} else {
+		halfmove_clock += 1
+	}
+
 	// Castling
 	if can_castle_kingside[active_color] &&
 	   board[from_x][from_y].piece_type == .King &&
@@ -460,6 +470,8 @@ load_fen :: proc(game: ^Game, fen: string) -> bool {
 	tmp_can_castle_q: [Color]bool
 	tmp_ep: [2]i32 = {-1, -1}
 	tmp_active_color: Color
+	tmp_halfmove_clock: int
+	tmp_fullmove_number: int
 
 	rank: i32 = 0
 	file: i32 = 0
@@ -579,15 +591,29 @@ load_fen :: proc(game: ^Game, fen: string) -> bool {
 		tmp_ep = {x, y}
 	}
 
+	ok: bool
+
+	tmp_halfmove_clock, ok = strconv.parse_int(halfmove)
+	if !ok {
+		fmt.println("Invalid halfmove clock")
+		return false
+	}
+
+	tmp_fullmove_number, ok = strconv.parse_int(fullmove)
+	if !ok {
+		fmt.println("Invalid fullmove number")
+		return false
+	}
+
 	// Validation successful. Commit atomically.
 	game^ = {}
-	fmt.print(tmp_board) // DEBUG
 	game.board = tmp_board
 	game.can_castle_kingside = tmp_can_castle_k
 	game.can_castle_queenside = tmp_can_castle_q
 	game.en_passant_target_square = tmp_ep
 	game.active_color = tmp_active_color
-	// TODO: Halfmove, fullmove
+	game.halfmove_clock = i32(tmp_halfmove_clock)
+	game.fullmove_number = i32(tmp_fullmove_number)
 
 	game.is_completed = false
 
