@@ -1,5 +1,4 @@
 ## Todo
-- [] Allocation tracker
 - [] Console logger
 - [] Underpromotion
   - Option to choose what to promote to
@@ -24,9 +23,12 @@
   - [] Modify any game state field - "set board_left 200"
 
 ## Doing
-- [] Threefold repetition
+- [] Allocation tracker
 
 ## Done
+- [x] Threefold repetition
+  - Note that if you load a FEN, you will lose the seen positions
+  - This is a limitation of FEN
 - [x] 50 move rule
 - [x] Promotion to queen
 - [x] Properly handle halfmove_clock and fullmove_number

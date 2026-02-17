@@ -75,7 +75,8 @@ Game :: struct {
 		Checkmate,
 		Stalemate,
 		Fifty_Move_Rule,
-		// TODO: Draw Offer, Insufficient Materials, Resignation, 50 moves, Three fold etc
+		Threefold_Repetition,
+		// TODO: Draw Offer, Insufficient Materials, Resignation
 	},
 	completed_outcome:        enum {
 		White_Win,
@@ -91,6 +92,7 @@ Game :: struct {
 	fullmove_number:          i32,
 	moves:                    [8][8]Bitboard,
 	fen:                      Fixed_Cstring(128),
+	seen_fens:                map[string]int, // For detecting threefold repetition
 
 	// For sounds
 	in_check:                 bool,
@@ -183,6 +185,9 @@ main :: proc() {
 		debug_x                    = 10,
 		debug_y                    = 10,
 	}
+
+	seen_fens = make(map[string]int)
+	defer delete(seen_fens)
 
 
 	rl.SetConfigFlags({.WINDOW_RESIZABLE})
@@ -510,7 +515,7 @@ main :: proc() {
 					{debug_x, debug_y + f32(row) * debug_line_height},
 					12,
 					1,
-					rl.WHITE,
+					rl.ORANGE,
 				)
 				row += 1
 			}
@@ -530,7 +535,7 @@ main :: proc() {
 					{debug_x, debug_y + f32(row) * debug_line_height},
 					12,
 					1,
-					rl.WHITE,
+					rl.ORANGE,
 				)
 				row += 1
 			}

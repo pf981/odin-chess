@@ -83,7 +83,7 @@ is_square_attacked :: proc(using game: Game, tx: i32, ty: i32) -> bool {
 }
 
 
-update_moves :: proc(using game: ^Game) {
+refresh_game_state :: proc(using game: ^Game) {
 	moves = {}
 	if is_completed {
 		return
@@ -297,6 +297,30 @@ update_moves :: proc(using game: ^Game) {
 		completed_outcome = .Draw
 		completed_reason = .Fifty_Move_Rule
 	}
+
+	set_fen(game)
+
+	// Threefold repetition
+	// Note that loading a FEN will lose the seen states
+	// Chop off the two counters in the FEN
+	fen_string := string(to_cstring(&fen))
+	spaces := 0
+	i := 0
+	for c in fen_string {
+		if c == ' ' {
+			spaces += 1
+		}
+		if spaces == 4 {
+			break
+		}
+		i += 1
+	}
+	seen_fens[fen_string[:i]] += 1
+	if seen_fens[fen_string[:i]] >= 3 {
+		is_completed = true
+		completed_outcome = .Draw
+		completed_reason = .Threefold_Repetition
+	}
 }
 
 make_move :: proc(using game: ^Game, from_x: i32, from_y: i32, to_x: i32, to_y: i32) {
@@ -375,9 +399,7 @@ make_move :: proc(using game: ^Game, from_x: i32, from_y: i32, to_x: i32, to_y: 
 		}
 	}
 
-	update_moves(game)
-
-	set_fen(game)
+	refresh_game_state(game)
 }
 
 set_fen :: proc(using game: ^Game) {
@@ -465,7 +487,7 @@ reset_game :: proc(game: ^Game) {
 }
 
 load_fen :: proc(game: ^Game, fen: string) -> bool {
-	parts := strings.split(fen, " ")
+	parts := strings.split(fen, " ", allocator = context.temp_allocator)
 	if len(parts) < 6 {
 		fmt.println("Too few parts")
 		return false
@@ -630,8 +652,7 @@ load_fen :: proc(game: ^Game, fen: string) -> bool {
 
 	game.is_completed = false
 
-	update_moves(game)
-	set_fen(game)
+	refresh_game_state(game)
 
 	return true
 }
