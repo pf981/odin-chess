@@ -1,3 +1,5 @@
+#+feature using-stmt
+
 package main
 
 import "core:fmt"
@@ -8,6 +10,7 @@ import "core:strings"
 import rl "vendor:raylib"
 
 CONSOLE_INPUT_BUFFER_SIZE :: 256
+FEN_BUFFER_SIZE :: 128
 
 Piece_Type :: enum {
 	Pawn,
@@ -57,6 +60,9 @@ Game :: struct {
 	can_castle_queenside:     [Color]bool,
 	en_passant_target_square: [2]i32,
 	moves:                    [8][8]Bitboard,
+	fen:                      string,
+	fen_buffer:               [FEN_BUFFER_SIZE]byte,
+	fen_buffer_length:        i32,
 
 	// For sounds
 	in_check:                 bool,
@@ -109,7 +115,7 @@ Game_State :: struct {
 
 	// Console
 	console_font_size:                 f32,
-	console_input_buffer:              [CONSOLE_INPUT_BUFFER_SIZE]u8,
+	console_input_buffer:              [CONSOLE_INPUT_BUFFER_SIZE]byte,
 	console_input_buffer_length:       i32,
 
 	// Debug
