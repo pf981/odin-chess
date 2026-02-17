@@ -351,6 +351,11 @@ make_move :: proc(using game: ^Game, from_x: i32, from_y: i32, to_x: i32, to_y: 
 	board[from_x][from_y].active = false
 	active_color = .White if active_color == .Black else .Black
 
+	// Promotion - Auto promote to queen for now
+	if board[to_x][to_y].piece_type == .Pawn && (to_y == 0 || to_y == 7) {
+		board[to_x][to_y].piece_type = .Queen
+	}
+
 	outer: for x in 0 ..< 8 {
 		for y in 0 ..< 8 {
 			p := board[x][y]
