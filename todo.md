@@ -1,9 +1,6 @@
 ## Todo
 - [] Threefold repetition
 - [] Allocation tracker
-- [] Properly handle halfmove_clock and fullmove_number
-  - [] Loading fen
-  - [] Update on move
 - [] Console logger
 - [] Game completion animation
 - [] Right UI
@@ -26,9 +23,13 @@
   - [] Modify any game state field - "set board_left 200"
 
 ## Doing
-- [] Fix bug: New, e4, press F3 to reload FEN, e5. e5 results in black pawn disappearing with "take" sound
+- [] Properly handle halfmove_clock and fullmove_number
+  - [] Loading fen
+  - [] Update on move
 
 ## Done
+- [x] Fix bug: New, e4, press F3 to reload FEN, e5. e5 results in black pawn disappearing with "take" sound
+  - Due to en passant target square being incorrect when loading FEN
 - [x] Generate FEN every move
 - [x] Add command to set FPS - "fps 120"; "fps 0" for unlimited
 - [x] Add start game sound

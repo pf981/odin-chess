@@ -574,13 +574,14 @@ load_fen :: proc(game: ^Game, fen: string) -> bool {
 		}
 
 		x := i32(file_char - 'a')
-		y := 8 - i32(rank_char - '0')
+		y := i32(rank_char - '0')
 
 		tmp_ep = {x, y}
 	}
 
 	// Validation successful. Commit atomically.
 	game^ = {}
+	fmt.print(tmp_board) // DEBUG
 	game.board = tmp_board
 	game.can_castle_kingside = tmp_can_castle_k
 	game.can_castle_queenside = tmp_can_castle_q

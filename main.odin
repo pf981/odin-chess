@@ -139,6 +139,7 @@ Game_State :: struct {
 	color_black_square:                 rl.Color,
 	color_move_to:                      rl.Color,
 	color_attacked:                     rl.Color,
+	color_en_passant:                   rl.Color,
 	color_console_bg:                   rl.Color,
 	color_console_font:                 rl.Color,
 
@@ -172,6 +173,7 @@ main :: proc() {
 		color_black_square         = rl.GetColor(0x739552FF),
 		color_move_to              = rl.Fade(rl.BLUE, 0.7),
 		color_attacked             = rl.Fade(rl.RED, 0.7),
+		color_en_passant           = rl.Fade(rl.GREEN, 0.7),
 		color_console_bg           = rl.Fade(rl.GetColor(0x232627FF), 0.95),
 		color_console_font         = rl.WHITE,
 		console_font_size          = 20,
@@ -436,6 +438,16 @@ main :: proc() {
 						board_top + square_length * i32(y) + square_length / 2,
 						0.1 * f32(square_length) / 2,
 						color_attacked,
+					)
+				}
+
+				// En passant dot
+				if debug_show_attacked_squares && en_passant_target_square == {i32(x), i32(y)} {
+					rl.DrawCircle(
+						board_left + square_length * i32(x) + square_length / 2,
+						board_top + square_length * i32(y) + square_length / 2,
+						0.1 * f32(square_length) / 2,
+						color_en_passant,
 					)
 				}
 			}
