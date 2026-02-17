@@ -1,5 +1,4 @@
 ## Todo
-- [] Threefold repetition
 - [] Allocation tracker
 - [] Console logger
 - [] Underpromotion
@@ -25,9 +24,11 @@
   - [] Modify any game state field - "set board_left 200"
 
 ## Doing
-- [] Promotion to queen
+- [] Threefold repetition
 
 ## Done
+- [x] 50 move rule
+- [x] Promotion to queen
 - [x] Properly handle halfmove_clock and fullmove_number
   - [x] Loading fen
   - [x] Update on move

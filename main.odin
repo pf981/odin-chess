@@ -74,6 +74,7 @@ Game :: struct {
 	completed_reason:         enum {
 		Checkmate,
 		Stalemate,
+		Fifty_Move_Rule,
 		// TODO: Draw Offer, Insufficient Materials, Resignation, 50 moves, Three fold etc
 	},
 	completed_outcome:        enum {

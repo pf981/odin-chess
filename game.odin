@@ -290,6 +290,13 @@ update_moves :: proc(using game: ^Game) {
 			}
 		}
 	}
+
+	// 50 move rule
+	if !is_completed && halfmove_clock >= 100 {
+		is_completed = true
+		completed_outcome = .Draw
+		completed_reason = .Fifty_Move_Rule
+	}
 }
 
 make_move :: proc(using game: ^Game, from_x: i32, from_y: i32, to_x: i32, to_y: i32) {
@@ -369,6 +376,7 @@ make_move :: proc(using game: ^Game, from_x: i32, from_y: i32, to_x: i32, to_y: 
 	}
 
 	update_moves(game)
+
 	set_fen(game)
 }
 
