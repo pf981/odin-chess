@@ -641,7 +641,10 @@ load_fen :: proc(game: ^Game, fen: string) -> bool {
 	}
 
 	// Validation successful. Commit atomically.
-	game^ = {}
+	clear(&game.seen_fens)
+	game^ = {
+		seen_fens = game.seen_fens,
+	}
 	game.board = tmp_board
 	game.can_castle_kingside = tmp_can_castle_k
 	game.can_castle_queenside = tmp_can_castle_q

@@ -1,5 +1,4 @@
 ## Todo
-- [] Console logger
 - [] Underpromotion
   - Option to choose what to promote to
 - [] Game completion animation
@@ -23,9 +22,10 @@
   - [] Modify any game state field - "set board_left 200"
 
 ## Doing
-- [] Allocation tracker
 
 ## Done
+- [x] Console logger
+- [x] Allocation tracker
 - [x] Threefold repetition
   - Note that if you load a FEN, you will lose the seen positions
   - This is a limitation of FEN

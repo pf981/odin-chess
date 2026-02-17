@@ -2,8 +2,11 @@
 
 package main
 
+import "core:c/libc"
 import "core:fmt"
+import "core:log"
 import "core:math"
+import "core:mem"
 import "core:reflect"
 import "core:strconv"
 import "core:strings"
@@ -161,6 +164,32 @@ Game_State :: struct {
 }
 
 main :: proc() {
+	context.logger = log.create_console_logger()
+
+	default_allocator := context.allocator
+	tracking_allocator: mem.Tracking_Allocator
+	mem.tracking_allocator_init(&tracking_allocator, default_allocator)
+	context.allocator = mem.tracking_allocator(&tracking_allocator)
+
+	reset_tracking_allocator :: proc(a: ^mem.Tracking_Allocator) -> bool {
+		err := false
+
+		for _, value in a.allocation_map {
+			fmt.printf("%v: Leaked %v bytes\n", value.location, value.size)
+			err = true
+		}
+
+		mem.tracking_allocator_clear(a)
+		return err
+	}
+	defer {
+		if reset_tracking_allocator(&tracking_allocator) {
+			libc.getchar()
+		}
+		mem.tracking_allocator_destroy(&tracking_allocator)
+	}
+
+
 	using gs := Game_State {
 		screen_width               = 1920,
 		screen_height              = 1080,
@@ -180,13 +209,13 @@ main :: proc() {
 		color_console_bg           = rl.Fade(rl.GetColor(0x232627FF), 0.95),
 		color_console_font         = rl.WHITE,
 		console_font_size          = 20,
-		debug_show                 = true,
+		debug_show                 = false,
 		debug_line_height          = 12,
 		debug_x                    = 10,
 		debug_y                    = 10,
 	}
 
-	seen_fens = make(map[string]int)
+	// seen_fens = make(map[string]int)
 	defer delete(seen_fens)
 
 
@@ -363,7 +392,7 @@ main :: proc() {
 			if key_enter_pressed {
 				ui_state = .Default
 				command := string(to_cstring(&console_input_buffer))
-				parts := strings.split_n(command, " ", 2)
+				parts := strings.split_n(command, " ", 2, allocator = context.temp_allocator)
 				op := parts[0]
 
 				if op == "new" {
@@ -524,7 +553,7 @@ main :: proc() {
 
 			names = reflect.struct_field_names(typeid_of(Game))
 			for name in names {
-				if name == "board" || name == "moves" || name == "fen" {
+				if name == "board" || name == "moves" || name == "fen" || name == "seen_fens" {
 					continue
 				}
 				val_any := reflect.struct_field_value_by_name(game, name)
@@ -581,6 +610,15 @@ main :: proc() {
 		}
 
 		rl.EndDrawing()
+
+		if len(tracking_allocator.bad_free_array) > 0 {
+			for b in tracking_allocator.bad_free_array {
+				log.errorf("Bad free at: %v", b.location)
+			}
+
+			libc.getchar()
+			panic("Bad free detected")
+		}
 
 		free_all(context.temp_allocator)
 	}
