@@ -47,4 +47,5 @@ odin-chess/
 ---
 
 ## 📸 Screenshots
+<img width="834" height="861" alt="Screenshot 2026-02-17 at 10 59 53 pm" src="https://github.com/user-attachments/assets/b525ab1e-a9e8-419b-9fbd-fd57d2ba76c6" />
 
