@@ -359,77 +359,77 @@ make_move :: proc(using game: ^Game, from_x: i32, from_y: i32, to_x: i32, to_y: 
 }
 
 set_fen :: proc(using game: ^Game) {
-	fen_buffer[0] = 0
-	fen_buffer_length = 0
+	// fen_buffer[0] = 0
+	// fen_buffer_length = 0
 
-	append :: proc(char: byte, buffer: ^[FEN_BUFFER_SIZE]byte, length: ^i32) -> bool {
-		if length^ >= FEN_BUFFER_SIZE - 1 {
-			return false
-		}
+	// append :: proc(char: byte, buffer: ^[FEN_BUFFER_SIZE]byte, length: ^i32) -> bool {
+	// 	if length^ >= FEN_BUFFER_SIZE - 1 {
+	// 		return false
+	// 	}
 
-		buffer[length^] = char
-		length^ += 1
-		buffer[length^] = 0
-		return true
-	}
+	// 	buffer[length^] = char
+	// 	length^ += 1
+	// 	buffer[length^] = 0
+	// 	return true
+	// }
 
-	for y in 0 ..< 8 {
-		streak := 0
-		for x in 0 ..< 8 {
-			if board[x][y].active {
-				append(byte(48 + streak), &fen_buffer, &fen_buffer_length)
+	// for y in 0 ..< 8 {
+	// 	streak := 0
+	// 	for x in 0 ..< 8 {
+	// 		if board[x][y].active {
+	// 			append(byte(48 + streak), &fen_buffer, &fen_buffer_length)
 
-				switch board[x][y].piece_type {
-				case .Pawn:
-					append('P' if active_color == .White else 'p', &fen_buffer, &fen_buffer_length)
-				case .Rook:
-					append('R' if active_color == .White else 'r', &fen_buffer, &fen_buffer_length)
-				case .Knight:
-					append('N' if active_color == .White else 'n', &fen_buffer, &fen_buffer_length)
-				case .Bishop:
-					append('B' if active_color == .White else 'b', &fen_buffer, &fen_buffer_length)
-				case .Queen:
-					append('Q' if active_color == .White else 'q', &fen_buffer, &fen_buffer_length)
-				case .King:
-					append('K' if active_color == .White else 'k', &fen_buffer, &fen_buffer_length)
-				}
-				streak = 0
-			} else {
-				streak += 1
-			}
-		}
-		if streak > 0 {
-			append(byte(48 + streak), &fen_buffer, &fen_buffer_length)
-		}
-		if y < 7 {
-			append('/', &fen_buffer, &fen_buffer_length)
-		}
-	}
+	// 			switch board[x][y].piece_type {
+	// 			case .Pawn:
+	// 				append('P' if active_color == .White else 'p', &fen_buffer, &fen_buffer_length)
+	// 			case .Rook:
+	// 				append('R' if active_color == .White else 'r', &fen_buffer, &fen_buffer_length)
+	// 			case .Knight:
+	// 				append('N' if active_color == .White else 'n', &fen_buffer, &fen_buffer_length)
+	// 			case .Bishop:
+	// 				append('B' if active_color == .White else 'b', &fen_buffer, &fen_buffer_length)
+	// 			case .Queen:
+	// 				append('Q' if active_color == .White else 'q', &fen_buffer, &fen_buffer_length)
+	// 			case .King:
+	// 				append('K' if active_color == .White else 'k', &fen_buffer, &fen_buffer_length)
+	// 			}
+	// 			streak = 0
+	// 		} else {
+	// 			streak += 1
+	// 		}
+	// 	}
+	// 	if streak > 0 {
+	// 		append(byte(48 + streak), &fen_buffer, &fen_buffer_length)
+	// 	}
+	// 	if y < 7 {
+	// 		append('/', &fen_buffer, &fen_buffer_length)
+	// 	}
+	// }
 
-	append(' ', &fen_buffer, &fen_buffer_length)
-	append('w' if active_color == .White else 'b', &fen_buffer, &fen_buffer_length)
+	// append(' ', &fen_buffer, &fen_buffer_length)
+	// append('w' if active_color == .White else 'b', &fen_buffer, &fen_buffer_length)
 
-	if can_castle_kingside[.White] {
-		append('K', &fen_buffer, &fen_buffer_length)
-	}
-	if can_castle_queenside[.White] {
-		append('Q', &fen_buffer, &fen_buffer_length)
-	}
-	if can_castle_kingside[.Black] {
-		append('k', &fen_buffer, &fen_buffer_length)
-	}
-	if can_castle_queenside[.Black] {
-		append('q', &fen_buffer, &fen_buffer_length)
-	}
-	if can_castle_kingside == {} && can_castle_queenside == {} {
-		append('-', &fen_buffer, &fen_buffer_length)
-	}
+	// if can_castle_kingside[.White] {
+	// 	append('K', &fen_buffer, &fen_buffer_length)
+	// }
+	// if can_castle_queenside[.White] {
+	// 	append('Q', &fen_buffer, &fen_buffer_length)
+	// }
+	// if can_castle_kingside[.Black] {
+	// 	append('k', &fen_buffer, &fen_buffer_length)
+	// }
+	// if can_castle_queenside[.Black] {
+	// 	append('q', &fen_buffer, &fen_buffer_length)
+	// }
+	// if can_castle_kingside == {} && can_castle_queenside == {} {
+	// 	append('-', &fen_buffer, &fen_buffer_length)
+	// }
 
-	append(' ', &fen_buffer, &fen_buffer_length)
+	// append(' ', &fen_buffer, &fen_buffer_length)
 
-	if en_passant_target_square != {-1, -1} {
-		TODO
-	}
+	// if en_passant_target_square != {-1, -1} {
+	// 	// TODO
+	// }
 }
 
 reset_game :: proc(game: ^Game) {

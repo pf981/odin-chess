@@ -9,8 +9,36 @@ import "core:strconv"
 import "core:strings"
 import rl "vendor:raylib"
 
-CONSOLE_INPUT_BUFFER_SIZE :: 256
-FEN_BUFFER_SIZE :: 128
+Fixed_Cstring :: struct($Capacity: int) {
+	buffer: [Capacity]byte,
+	length: int,
+}
+
+append :: proc(ch: byte, s: ^Fixed_Cstring($Capacity)) -> bool {
+	if s.length >= Capacity - 1 {
+		return false
+	}
+	s.buffer[s.length] = ch
+	s.length += 1
+	s.buffer[s.length] = 0
+	return true
+}
+
+truncate :: proc(s: ^Fixed_Cstring($Capacity)) {
+	s.length = 0
+	s.buffer[s.length] = 0
+}
+
+pop :: proc(s: ^Fixed_Cstring($Capacity)) {
+	if s.length == 0 {return}
+	s.length -= 1
+	s.buffer[s.length] = 0
+}
+
+to_cstring :: proc(s: ^Fixed_Cstring($Capacity)) -> cstring {
+	return cstring(&s.buffer[0])
+}
+
 
 Piece_Type :: enum {
 	Pawn,
@@ -61,8 +89,7 @@ Game :: struct {
 	en_passant_target_square: [2]i32,
 	moves:                    [8][8]Bitboard,
 	fen:                      string,
-	fen_buffer:               [FEN_BUFFER_SIZE]byte,
-	fen_buffer_length:        i32,
+	fen_buffer:               Fixed_Cstring(128),
 
 	// For sounds
 	in_check:                 bool,
@@ -115,8 +142,7 @@ Game_State :: struct {
 
 	// Console
 	console_font_size:                 f32,
-	console_input_buffer:              [CONSOLE_INPUT_BUFFER_SIZE]byte,
-	console_input_buffer_length:       i32,
+	console_input_buffer:              Fixed_Cstring(256),
 
 	// Debug
 	debug_show:                        bool,
@@ -258,8 +284,7 @@ main :: proc() {
 		}
 		if key_show_console_pressed {
 			ui_state = .Console if ui_state != .Console else .Default
-			console_input_buffer[0] = 0
-			console_input_buffer_length = 0
+			truncate(&console_input_buffer)
 		}
 
 		switch ui_state {
@@ -303,29 +328,18 @@ main :: proc() {
 		case .Console:
 			if key_ctrl_v_pressed {
 				for c in string(rl.GetClipboardText()) {
-					if console_input_buffer_length >= CONSOLE_INPUT_BUFFER_SIZE - 1 {
-						break
-					}
-					if c >= 32 && c < 127 {
-						console_input_buffer[console_input_buffer_length] = u8(c)
-						console_input_buffer_length += 1
-						console_input_buffer[console_input_buffer_length] = 0
-					}
+					append(byte(c), &console_input_buffer)
 				}
 			}
-			if key_last_char_pressed != 0 &&
-			   console_input_buffer_length < CONSOLE_INPUT_BUFFER_SIZE - 1 {
-				console_input_buffer[console_input_buffer_length] = key_last_char_pressed
-				console_input_buffer_length += 1
-				console_input_buffer[console_input_buffer_length] = 0
+			if key_last_char_pressed != 0 {
+				append(key_last_char_pressed, &console_input_buffer)
 			}
 			if key_backspace_pressed {
-				console_input_buffer_length -= 1
-				console_input_buffer[console_input_buffer_length] = 0
+				pop(&console_input_buffer)
 			}
 			if key_enter_pressed {
 				ui_state = .Default
-				command := string(cstring(&console_input_buffer[0]))
+				command := string(to_cstring(&console_input_buffer))
 				parts := strings.split_n(command, " ", 2)
 				op := parts[0]
 
@@ -348,8 +362,7 @@ main :: proc() {
 					fmt.printfln("Unable to process command '%s'", command)
 				}
 
-				console_input_buffer[0] = 0
-				console_input_buffer_length = 0
+				truncate(&console_input_buffer)
 			}
 
 		case .Game_Over:
@@ -458,9 +471,7 @@ main :: proc() {
 			names := reflect.struct_field_names(typeid_of(Game_State))
 			row := 0
 			for name in names {
-				if name == "game" ||
-				   name == "console_input_buffer" ||
-				   name == "console_lookback_buffer" {
+				if name == "game" || name == "console_input_buffer" {
 					continue
 				}
 				val_any := reflect.struct_field_value_by_name(gs, name)
@@ -508,14 +519,14 @@ main :: proc() {
 
 			dimensions := rl.MeasureTextEx(
 				font,
-				cstring(&console_input_buffer[0]),
+				to_cstring(&console_input_buffer),
 				console_font_size,
 				1,
 			)
 
 			rl.DrawTextEx(
 				font,
-				cstring(&console_input_buffer[0]),
+				to_cstring(&console_input_buffer),
 				{
 					(f32(screen_width) / 2) - (dimensions[0] / 2),
 					console_y - 50 / 2 - (dimensions[1] / 2),
