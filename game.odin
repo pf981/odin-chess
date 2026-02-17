@@ -302,7 +302,6 @@ make_move :: proc(using game: ^Game, from_x: i32, from_y: i32, to_x: i32, to_y: 
 	}
 
 	// Castling
-	// TODO: Move rook on castling
 	if can_castle_kingside[active_color] &&
 	   board[from_x][from_y].piece_type == .King &&
 	   to_x == 2 {
@@ -359,77 +358,81 @@ make_move :: proc(using game: ^Game, from_x: i32, from_y: i32, to_x: i32, to_y: 
 }
 
 set_fen :: proc(using game: ^Game) {
-	// fen_buffer[0] = 0
-	// fen_buffer_length = 0
+	truncate(&fen)
 
-	// append :: proc(char: byte, buffer: ^[FEN_BUFFER_SIZE]byte, length: ^i32) -> bool {
-	// 	if length^ >= FEN_BUFFER_SIZE - 1 {
-	// 		return false
-	// 	}
+	for y in 0 ..< 8 {
+		streak := 0
+		for x in 0 ..< 8 {
+			p := board[x][y]
+			if p.active {
+				if streak > 0 {
+					append(byte(48 + streak), &fen)
+				}
 
-	// 	buffer[length^] = char
-	// 	length^ += 1
-	// 	buffer[length^] = 0
-	// 	return true
-	// }
+				switch p.piece_type {
+				case .Pawn:
+					append('P' if p.color == .White else 'p', &fen)
+				case .Rook:
+					append('R' if p.color == .White else 'r', &fen)
+				case .Knight:
+					append('N' if p.color == .White else 'n', &fen)
+				case .Bishop:
+					append('B' if p.color == .White else 'b', &fen)
+				case .Queen:
+					append('Q' if p.color == .White else 'q', &fen)
+				case .King:
+					append('K' if p.color == .White else 'k', &fen)
+				}
+				streak = 0
+			} else {
+				streak += 1
+			}
+		}
+		if streak > 0 {
+			append(byte(48 + streak), &fen)
+		}
+		if y < 7 {
+			append('/', &fen)
+		}
+	}
 
-	// for y in 0 ..< 8 {
-	// 	streak := 0
-	// 	for x in 0 ..< 8 {
-	// 		if board[x][y].active {
-	// 			append(byte(48 + streak), &fen_buffer, &fen_buffer_length)
+	append(' ', &fen)
+	append('w' if active_color == .White else 'b', &fen)
 
-	// 			switch board[x][y].piece_type {
-	// 			case .Pawn:
-	// 				append('P' if active_color == .White else 'p', &fen_buffer, &fen_buffer_length)
-	// 			case .Rook:
-	// 				append('R' if active_color == .White else 'r', &fen_buffer, &fen_buffer_length)
-	// 			case .Knight:
-	// 				append('N' if active_color == .White else 'n', &fen_buffer, &fen_buffer_length)
-	// 			case .Bishop:
-	// 				append('B' if active_color == .White else 'b', &fen_buffer, &fen_buffer_length)
-	// 			case .Queen:
-	// 				append('Q' if active_color == .White else 'q', &fen_buffer, &fen_buffer_length)
-	// 			case .King:
-	// 				append('K' if active_color == .White else 'k', &fen_buffer, &fen_buffer_length)
-	// 			}
-	// 			streak = 0
-	// 		} else {
-	// 			streak += 1
-	// 		}
-	// 	}
-	// 	if streak > 0 {
-	// 		append(byte(48 + streak), &fen_buffer, &fen_buffer_length)
-	// 	}
-	// 	if y < 7 {
-	// 		append('/', &fen_buffer, &fen_buffer_length)
-	// 	}
-	// }
+	append(' ', &fen)
+	if can_castle_kingside[.White] {
+		append('K', &fen)
+	}
+	if can_castle_queenside[.White] {
+		append('Q', &fen)
+	}
+	if can_castle_kingside[.Black] {
+		append('k', &fen)
+	}
+	if can_castle_queenside[.Black] {
+		append('q', &fen)
+	}
+	if can_castle_kingside == {} && can_castle_queenside == {} {
+		append('-', &fen)
+	}
 
-	// append(' ', &fen_buffer, &fen_buffer_length)
-	// append('w' if active_color == .White else 'b', &fen_buffer, &fen_buffer_length)
+	append(' ', &fen)
+	if en_passant_target_square != {-1, -1} {
+		append(byte(97 + en_passant_target_square[0]), &fen)
+		append(byte(48 + en_passant_target_square[1]), &fen)
+	} else {
+		append('-', &fen)
+	}
 
-	// if can_castle_kingside[.White] {
-	// 	append('K', &fen_buffer, &fen_buffer_length)
-	// }
-	// if can_castle_queenside[.White] {
-	// 	append('Q', &fen_buffer, &fen_buffer_length)
-	// }
-	// if can_castle_kingside[.Black] {
-	// 	append('k', &fen_buffer, &fen_buffer_length)
-	// }
-	// if can_castle_queenside[.Black] {
-	// 	append('q', &fen_buffer, &fen_buffer_length)
-	// }
-	// if can_castle_kingside == {} && can_castle_queenside == {} {
-	// 	append('-', &fen_buffer, &fen_buffer_length)
-	// }
+	append(' ', &fen)
+	for c in fmt.tprint(halfmove_clock) {
+		append(byte(c), &fen)
+	}
 
-	// append(' ', &fen_buffer, &fen_buffer_length)
-
-	// if en_passant_target_square != {-1, -1} {
-	// 	// TODO
-	// }
+	append(' ', &fen)
+	for c in fmt.tprint(fullmove_number) {
+		append(byte(c), &fen)
+	}
 }
 
 reset_game :: proc(game: ^Game) {
@@ -440,7 +443,7 @@ reset_game :: proc(game: ^Game) {
 
 load_fen :: proc(game: ^Game, fen: string) -> bool {
 	parts := strings.split(fen, " ")
-	if len(parts) < 4 {
+	if len(parts) < 6 {
 		fmt.println("Too few parts")
 		return false
 	}
@@ -449,6 +452,8 @@ load_fen :: proc(game: ^Game, fen: string) -> bool {
 	active_color := parts[1]
 	castling := parts[2]
 	enpassant := parts[3]
+	halfmove := parts[4]
+	fullmove := parts[5]
 
 	tmp_board: [8][8]Piece
 	tmp_can_castle_k: [Color]bool
@@ -575,15 +580,18 @@ load_fen :: proc(game: ^Game, fen: string) -> bool {
 	}
 
 	// Validation successful. Commit atomically.
+	game^ = {}
 	game.board = tmp_board
 	game.can_castle_kingside = tmp_can_castle_k
 	game.can_castle_queenside = tmp_can_castle_q
 	game.en_passant_target_square = tmp_ep
 	game.active_color = tmp_active_color
+	// TODO: Halfmove, fullmove
 
 	game.is_completed = false
 
 	update_moves(game)
+	set_fen(game)
 
 	return true
 }

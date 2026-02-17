@@ -1,4 +1,10 @@
 ## Todo
+- [] Threefold repetition
+- [] Allocation tracker
+- [] Properly handle halfmove_clock and fullmove_number
+  - [] Loading fen
+  - [] Update on move
+- [] Console logger
 - [] Game completion animation
 - [] Right UI
   - [] Move notation
@@ -10,7 +16,6 @@
   - [] Checkboxes for CPU
 - [] CPU opponent (random valid moves. Black, white or both)
 - [] Additional end conditions
-  - [] Threefold repetition
   - [] Insufficient materials
   - [] Resignation
   - [] Draw offer
@@ -21,8 +26,10 @@
   - [] Modify any game state field - "set board_left 200"
 
 ## Doing
+- [] Fix bug: New, e4, press F3 to reload FEN, e5. e5 results in black pawn disappearing with "take" sound
 
 ## Done
+- [x] Generate FEN every move
 - [x] Add command to set FPS - "fps 120"; "fps 0" for unlimited
 - [x] Add start game sound
 - [x] Disable input on completion

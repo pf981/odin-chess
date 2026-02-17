@@ -39,7 +39,6 @@ to_cstring :: proc(s: ^Fixed_Cstring($Capacity)) -> cstring {
 	return cstring(&s.buffer[0])
 }
 
-
 Piece_Type :: enum {
 	Pawn,
 	Rook,
@@ -87,9 +86,10 @@ Game :: struct {
 	can_castle_kingside:      [Color]bool,
 	can_castle_queenside:     [Color]bool,
 	en_passant_target_square: [2]i32,
+	halfmove_clock:           i32, // TODO
+	fullmove_number:          i32, // TODO
 	moves:                    [8][8]Bitboard,
-	fen:                      string,
-	fen_buffer:               Fixed_Cstring(128),
+	fen:                      Fixed_Cstring(128),
 
 	// For sounds
 	in_check:                 bool,
@@ -98,84 +98,87 @@ Game :: struct {
 }
 
 Game_State :: struct {
-	ui_state:                          UI_State,
+	ui_state:                           UI_State,
 
 	// Screen
-	screen_width:                      i32,
-	screen_height:                     i32,
-	board_left:                        i32,
-	board_top:                         i32,
-	square_length:                     i32,
-	piece_scale:                       f32,
+	screen_width:                       i32,
+	screen_height:                      i32,
+	board_left:                         i32,
+	board_top:                          i32,
+	square_length:                      i32,
+	piece_scale:                        f32,
 
 	// Game
-	using game:                        Game,
-	dragging_piece_x:                  i32,
-	dragging_piece_y:                  i32,
+	using game:                         Game,
+	dragging_piece_x:                   i32,
+	dragging_piece_y:                   i32,
 
 	// Input
-	left_mouse_clicked:                bool,
-	mouse_pos:                         [2]f32,
-	mouse_board_is_valid:              bool,
-	mouse_board_x:                     i32,
-	mouse_board_y:                     i32,
-	key_show_attacked_squares_pressed: bool,
-	key_show_debug_pressed:            bool,
-	key_show_console_pressed:          bool,
-	key_backspace_pressed:             bool,
-	key_enter_pressed:                 bool,
-	key_ctrl_v_pressed:                bool,
-	key_last_char_pressed:             u8,
+	left_mouse_clicked:                 bool,
+	mouse_pos:                          [2]f32,
+	mouse_board_is_valid:               bool,
+	mouse_board_x:                      i32,
+	mouse_board_y:                      i32,
+	key_show_attacked_squares_pressed:  bool,
+	key_show_debug_pressed:             bool,
+	key_show_console_pressed:           bool,
+	key_backspace_pressed:              bool,
+	key_enter_pressed:                  bool,
+	key_ctrl_v_pressed:                 bool,
+	key_debug_load_current_fen_pressed: bool,
+	key_last_char_pressed:              u8,
 
 	// Key Mapping
-	key_show_attacked_squares:         rl.KeyboardKey,
-	key_show_debug:                    rl.KeyboardKey,
-	key_show_console:                  rl.KeyboardKey,
+	key_show_attacked_squares:          rl.KeyboardKey,
+	key_show_debug:                     rl.KeyboardKey,
+	key_show_console:                   rl.KeyboardKey,
+	key_debug_load_current_fen:         rl.KeyboardKey,
 
 	// Colors
-	color_white_square:                rl.Color,
-	color_black_square:                rl.Color,
-	color_move_to:                     rl.Color,
-	color_attacked:                    rl.Color,
-	color_console_bg:                  rl.Color,
-	color_console_font:                rl.Color,
+	color_white_square:                 rl.Color,
+	color_black_square:                 rl.Color,
+	color_move_to:                      rl.Color,
+	color_attacked:                     rl.Color,
+	color_console_bg:                   rl.Color,
+	color_console_font:                 rl.Color,
 
 	// Console
-	console_font_size:                 f32,
-	console_input_buffer:              Fixed_Cstring(256),
+	console_font_size:                  f32,
+	console_input_buffer:               Fixed_Cstring(256),
 
 	// Debug
-	debug_show:                        bool,
-	debug_show_attacked_squares:       bool,
-	debug_line_height:                 f32,
-	debug_x:                           f32,
-	debug_y:                           f32,
-	dt:                                f32,
-	fps:                               i32,
+	debug_show:                         bool,
+	debug_show_attacked_squares:        bool,
+	debug_line_height:                  f32,
+	debug_x:                            f32,
+	debug_y:                            f32,
+	dt:                                 f32,
+	fps:                                i32,
 }
 
 main :: proc() {
 	using gs := Game_State {
-		screen_width              = 1920,
-		screen_height             = 1080,
-		square_length             = 1080 / 8,
-		board_left                = (1920 - 1080) / 2,
-		board_top                 = (1080 - 1080) / 2,
-		piece_scale               = 1080.0 / 8 / 480.0,
-		key_show_attacked_squares = rl.KeyboardKey.F1,
-		key_show_debug            = rl.KeyboardKey.F2,
-		key_show_console          = rl.KeyboardKey.GRAVE,
-		color_white_square        = rl.GetColor(0xEBECD0FF),
-		color_black_square        = rl.GetColor(0x739552FF),
-		color_move_to             = rl.Fade(rl.BLUE, 0.7),
-		color_attacked            = rl.Fade(rl.RED, 0.7),
-		color_console_bg          = rl.Fade(rl.GetColor(0x232627FF), 0.95),
-		color_console_font        = rl.WHITE,
-		console_font_size         = 20,
-		debug_show                = true,
-		debug_line_height         = 20,
-		debug_x                   = 10,
-		debug_y                   = 10,
+		screen_width               = 1920,
+		screen_height              = 1080,
+		square_length              = 1080 / 8,
+		board_left                 = (1920 - 1080) / 2,
+		board_top                  = (1080 - 1080) / 2,
+		piece_scale                = 1080.0 / 8 / 480.0,
+		key_show_attacked_squares  = rl.KeyboardKey.F1,
+		key_show_debug             = rl.KeyboardKey.F2,
+		key_show_console           = rl.KeyboardKey.GRAVE,
+		key_debug_load_current_fen = rl.KeyboardKey.F3,
+		color_white_square         = rl.GetColor(0xEBECD0FF),
+		color_black_square         = rl.GetColor(0x739552FF),
+		color_move_to              = rl.Fade(rl.BLUE, 0.7),
+		color_attacked             = rl.Fade(rl.RED, 0.7),
+		color_console_bg           = rl.Fade(rl.GetColor(0x232627FF), 0.95),
+		color_console_font         = rl.WHITE,
+		console_font_size          = 20,
+		debug_show                 = true,
+		debug_line_height          = 12,
+		debug_x                    = 10,
+		debug_y                    = 10,
 	}
 
 
@@ -255,6 +258,8 @@ main :: proc() {
 		key_show_attacked_squares_pressed = rl.IsKeyPressed(key_show_attacked_squares)
 		key_show_debug_pressed = rl.IsKeyPressed(key_show_debug)
 		key_show_console_pressed = rl.IsKeyPressed(key_show_console)
+		key_debug_load_current_fen_pressed = rl.IsKeyPressed(key_debug_load_current_fen)
+
 		key_backspace_pressed = rl.IsKeyPressed(rl.KeyboardKey.BACKSPACE)
 		key_enter_pressed = rl.IsKeyPressed(rl.KeyboardKey.ENTER)
 		key_ctrl_v_pressed =
@@ -271,6 +276,16 @@ main :: proc() {
 
 
 		// === STATE ===
+
+		if key_debug_load_current_fen_pressed {
+			ui_state = .Default
+			if !load_fen(&game, string(to_cstring(&fen))) {
+				fmt.println("Unable to load FEN")
+			} else {
+				fmt.printfln("Fen loaded %s", string(to_cstring(&fen)))
+				rl.PlaySound(sound_start)
+			}
+		}
 
 		if is_completed && ui_state != .Console {
 			ui_state = .Game_Over
@@ -480,7 +495,7 @@ main :: proc() {
 					font,
 					fmt.ctprintf("%s: %v\n", name, val_any),
 					{debug_x, debug_y + f32(row) * debug_line_height},
-					18,
+					12,
 					1,
 					rl.WHITE,
 				)
@@ -491,7 +506,7 @@ main :: proc() {
 
 			names = reflect.struct_field_names(typeid_of(Game))
 			for name in names {
-				if name == "board" || name == "moves" {
+				if name == "board" || name == "moves" || name == "fen" {
 					continue
 				}
 				val_any := reflect.struct_field_value_by_name(game, name)
@@ -500,13 +515,26 @@ main :: proc() {
 					font,
 					fmt.ctprintf("%s: %v\n", name, val_any),
 					{debug_x, debug_y + f32(row) * debug_line_height},
-					18,
+					12,
 					1,
 					rl.WHITE,
 				)
 				row += 1
 			}
+
+			rl.DrawTextEx(
+				font,
+				to_cstring(&fen),
+				{debug_x, debug_y + f32(row) * debug_line_height},
+				12,
+				1,
+				rl.BLUE,
+			)
+			row += 1
 		}
+
+		// Debug: FEN
+
 
 		// Console
 		if ui_state == .Console {
